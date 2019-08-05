@@ -4,6 +4,7 @@ package com.evnt.client.modules.so;
 
 import com.evnt.client.common.EVEManager;
 import com.evnt.client.common.EVEManagerUtil;
+import com.evnt.client.modules.ship.ShipModuleClient;
 import com.evnt.client.modules.so.dialogs.DlgInvShort;
 import com.evnt.common.MethodConst;
 import com.evnt.common.data.soitem.SOItem;
@@ -24,6 +25,9 @@ import com.fbi.sdk.UOMUtil;
 import com.fbi.sdk.constants.*;
 import com.fbi.util.FbiException;
 import com.fbi.util.logging.FBLogger;
+import com.unigrative.plugins.Models.Scanners;
+import com.unigrative.plugins.ScannerPlugin;
+import com.unigrative.plugins.common.DirectIOCommands;
 import jpos.JposException;
 import jpos.Scanner;
 import jpos.config.JposEntry;
@@ -62,6 +66,8 @@ public class ScannerButton
         extends FishbowlPluginButton implements DataListener, ErrorListener {
     private static final Logger LOGGER = FBLogger.getLogger();//ScannerButton.class);
     private SOModuleClient _SOModuleClient;
+    private ShipModuleClient _ShipModuleClient;
+
     EVEManager eveManager = EVEManagerUtil.getEveManager();
     private List<CustomField> soItemCustomFieldList;
 
@@ -76,13 +82,14 @@ public class ScannerButton
 
 
     public ScannerButton() {
+        //where does the button show
         this("Sales Order");
 
     }
 
     protected ScannerButton(String moduleName) {
         this.setModuleName(moduleName);
-        this.setPluginName(SOAddonsPlugin.MODULE_NAME);
+        this.setPluginName(ScannerPlugin.MODULE_NAME);
         this.setIcon((Icon) new ImageIcon(this.getClass().getResource("/images/barcode-scanner24x24.png")));
         this.setText("Scanner");
 
@@ -94,17 +101,17 @@ public class ScannerButton
 //                    //no SO loaded
 //                    JOptionPane.showMessageDialog(null, "No Sales Order Open"); //returns the SOID
 //                } else {
-                    //TODO: SCANNER SETTING WINDOW
-                    final int result = UtilGui.showConfirmDialog("Reset the scanner?","Scanner reset", 0);
-                    if (result == 0){
-                        resetScanner();
-                    }
+                //TODO: SCANNER SETTING WINDOW
+                final int result = UtilGui.showConfirmDialog("Reset the scanner?","Scanner reset", 0);
+                if (result == 0){
+                    resetScanner();
+                }
 //                }
 
             }
         });
 
-        _SOModuleClient = (SOModuleClient)SOAddonsPlugin.getInstance().getModule("Sales Order");
+        _SOModuleClient = (SOModuleClient)ScannerPlugin.getInstance().getModule("Sales Order");
         initScanner();
 
     }
@@ -337,7 +344,7 @@ public class ScannerButton
 
 
                     //if (isDebug){
-                        LOGGER.info("correct scanner ID: " + DirectIOCommands.scannerID );
+                    LOGGER.info("correct scanner ID: " + DirectIOCommands.scannerID );
                     //}
 
                 } catch (JposException e) {
@@ -422,9 +429,9 @@ public class ScannerButton
             //else add product to order
             if (upc.substring(0,4).equals("RCL_")){
 //                    this._SOModuleClient.showModule("Sales Order");
-                    SOAddonsPlugin.getInstance().showModule("Sales Order");
-                    LOGGER.error("SO NUM: " + upc.substring(4));
-                    this._SOModuleClient.loadSO(upc.substring(4));
+                ScannerPlugin.getInstance().showModule("Sales Order");
+                LOGGER.error("SO NUM: " + upc.substring(4));
+                this._SOModuleClient.loadSO(upc.substring(4));
 
 
             }
@@ -555,8 +562,8 @@ public class ScannerButton
             LOGGER.error("Error binding to scanner class for XML parse ", e);
         }
 
-        for (com.unigrative.plugins.salesorder.Models.Scanner scanner: scannerList.getScanners()
-             ) {
+        for (com.unigrative.plugins.Models.Scanner scanner: scannerList.getScanners()
+        ) {
             if (scanner.getModelnumber().substring(0,6).equals("LI4278")){
                 return scanner.getScannerID();
             }
@@ -569,7 +576,7 @@ public class ScannerButton
         int[] directIOStatus = new int[1];
         directIOStatus[0] = -1;
         StringBuffer inOutXml = new StringBuffer();
-                inOutXml.append(xmlCommand);
+        inOutXml.append(xmlCommand);
 
         try {
             scanner.directIO(5004, directIOStatus, inOutXml);
@@ -710,6 +717,8 @@ public class ScannerButton
         return mainPanel;
     }
 
+
+
     /////////ADD BUTTON METHODS
 
     private int getProductID(String upc) {
@@ -741,10 +750,10 @@ public class ScannerButton
 //                @Override
 //                public void run() {
 //                    LOGGER.error("Starting thread");
-                    if (addProductToSO(productId, new Quantity(1), null, true) == null) {
-                        //error on adding
-                        LOGGER.error("Error adding item to SO");
-                    }
+            if (addProductToSO(productId, new Quantity(1), null, true) == null) {
+                //error on adding
+                LOGGER.error("Error adding item to SO");
+            }
 //                }
 //            }).start();
 

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="com.unigrative.plugins.panels.clientSettingsPanel">
+  <grid id="27dc6" binding="pnlMain" layout-manager="GridBagLayout">
+    <constraints>
+      <xy x="20" y="20" width="500" height="400"/>
+    </constraints>
+    <properties/>
+    <border type="none"/>
+    <children>
+      <component id="ba024" class="javax.swing.JComboBox" binding="cboSelectedModule">
+        <constraints>
+          <grid row="0" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="2" anchor="8" fill="1" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.75" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <model>
+            <item value="Sales Order"/>
+            <item value="Shipping"/>
+          </model>
+        </properties>
+      </component>
+      <hspacer id="2e149">
+        <constraints>
+          <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="1" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+      </hspacer>
+      <vspacer id="82ae9">
+        <constraints>
+          <grid row="1" column="1" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+      </vspacer>
+      <component id="be1a3" class="javax.swing.JLabel" binding="lblSelectedModule">
+        <constraints>
+          <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="4" fill="0" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.5" weighty="0.0" ipadx="15"/>
+        </constraints>
+        <properties>
+          <text value="Pair Scanner with which Module"/>
+        </properties>
+      </component>
+    </children>
+  </grid>
+</form>

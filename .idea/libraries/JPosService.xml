@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="JPosService">
+    <CLASSES>
+      <root url="jar://C:/Program Files/Zebra Technologies/Barcode Scanners/Scanner SDK/JPOS/bin/JPosService.jar!/" />
+      <root url="jar://C:/Program Files/Zebra Technologies/Barcode Scanners/Scanner SDK/JPOS/bin/JPosServiceJni.jar!/" />
+      <root url="jar://C:/Program Files/Zebra Technologies/Barcode Scanners/Scanner SDK/JPOS/bin/Scanner/JPosServiceScanner.jar!/" />
+      <root url="jar://C:/Program Files/Zebra Technologies/Barcode Scanners/Scanner SDK/JPOS/external/JavaPOS-1.13.0-Dist/javaPOS113.jar!/" />
+      <root url="jar://C:/Program Files/Zebra Technologies/Barcode Scanners/Scanner SDK/JPOS/external/xerces-2_11_0/xml-apis.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

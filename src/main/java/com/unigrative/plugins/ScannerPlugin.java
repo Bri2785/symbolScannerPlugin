@@ -1,5 +1,6 @@
 package com.unigrative.plugins;
 
+import com.evnt.client.common.ClientProperties;
 import com.evnt.client.common.EVEManager;
 import com.evnt.client.common.EVEManagerUtil;
 import com.fbi.fbo.impl.dataexport.QueryRow;
@@ -7,6 +8,8 @@ import com.fbi.gui.button.FBMainToolbarButton;
 import com.fbi.gui.panel.TitlePanel;
 import com.fbi.plugins.FishbowlPlugin;
 import com.fbi.sdk.constants.MenuGroupNameConst;
+import com.unigrative.plugins.panels.clientSettingsPanel;
+import com.unigrative.plugins.panels.clientSettingsPanelImpl;
 import com.unigrative.plugins.repository.Repository;
 import com.unigrative.plugins.util.property.PropertyGetter;
 import org.slf4j.Logger;
@@ -20,16 +23,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Plugin extends FishbowlPlugin implements PropertyGetter, Repository.RunSql {
-    public static final String MODULE_NAME = "TestPlugin"; //CHANGE
-    public static final String MODULE_FRIENDLY_NAME = "Plugin Addons"; //CHANGE
-    private static final Logger LOGGER = LoggerFactory.getLogger((Class)Plugin.class);
+public class ScannerPlugin extends FishbowlPlugin implements PropertyGetter, Repository.RunSql {
+    public static final String MODULE_NAME = "ScannerPlugin"; //CHANGE
+    public static final String MODULE_FRIENDLY_NAME = "Scanner Plugin"; //CHANGE
+    private static final Logger LOGGER = LoggerFactory.getLogger((Class) ScannerPlugin.class);
 
     private static final String PLUGIN_GENERIC_PANEL = "pluginGenericPanel";
 
+    private static final String SCANNER_MODULE = "ScannerModule";
+
     private Repository repository;
 
-    private static Plugin instance = null;
+    private static ScannerPlugin instance = null;
 
     EVEManager eveManager = EVEManagerUtil.getEveManager(); //get access to eve manager
 
@@ -38,11 +43,13 @@ public class Plugin extends FishbowlPlugin implements PropertyGetter, Repository
     private FBMainToolbarButton btnSave;
 
     private JPanel pnlCards;
-    private JPanel pnlGeneric;
+    //private JPanel pnlGeneric;
 
-    public Plugin() {
+    private clientSettingsPanelImpl clientSettingsPanel;
+
+    public ScannerPlugin() {
         instance = this; //this is so we can access the FishbowlPlugin module methods from other classes
-        this.setModuleName(Plugin.MODULE_NAME);
+        this.setModuleName(ScannerPlugin.MODULE_NAME);
         this.setMenuGroup(MenuGroupNameConst.INTEGRATIONS);//this is the module group it shows up in
         this.setMenuListLocation(1000); //bottom of the list
         this.setIconClassPath("/images/unigrative48.png"); // make sure there is a 24 version in the folder so it can use that for the tabs
@@ -53,12 +60,12 @@ public class Plugin extends FishbowlPlugin implements PropertyGetter, Repository
     }
 
 
-    public static Plugin getInstance() {
+    public static ScannerPlugin getInstance() {
         return instance;
     }
 
     public String getModuleTitle() {
-        return "<html><center>TEST<br>PLUGIN</center></html>"; //CHANGE -> THIS SHOWS IN THE MODULE LIST
+        return "<html><center>Scanner<br>Plugin</center></html>"; //CHANGE -> THIS SHOWS IN THE MODULE LIST
     }
 
     public String getProperty(final String key) {
@@ -90,6 +97,14 @@ public class Plugin extends FishbowlPlugin implements PropertyGetter, Repository
     protected void saveSettings(){
         LOGGER.info("Saving settings");
 
+        //client settings
+        if (this.clientSettingsPanel.getCboSelectedValue() != null) {
+            ClientProperties.setProperty(SCANNER_MODULE, this.clientSettingsPanel.getCboSelectedValue());
+            ClientProperties.saveProperties();
+        }
+
+
+        //plugin settings
         final Map<String, String> properties = new HashMap<>();
 
 //        properties.put(Property.USERNAME.getKey(), txtUsername.getText());
@@ -153,16 +168,26 @@ public class Plugin extends FishbowlPlugin implements PropertyGetter, Repository
 
     private void initLayout() {
         //PANELS TO BE ADDED TO THE TABBED LAYOUT IF DESIRED
-        JLabel lblMessage = new JLabel();
-        lblMessage.setText("This plugin is for...."); //CHANGE
+//        JLabel lblMessage = new JLabel();
+//        lblMessage.setText("This plugin is for...."); //CHANGE
+//
+//
+//        this.pnlCards.add(lblMessage);
+        this.pnlCards.add(clientSettingsPanel, PLUGIN_GENERIC_PANEL);
 
+        String selectedModule = ClientProperties.getProperty(SCANNER_MODULE, null);
+        LOGGER.debug("Selected cbobox module = " + selectedModule);
 
-        this.pnlCards.add(lblMessage);
-        this.pnlCards.add(pnlGeneric, "GenericPanel" );
+        //todo:add listener to the module visible and reset the value in case it was changed but not saved
+        if (selectedModule != null) {
+            this.clientSettingsPanel.setCboSelectedValue(selectedModule);
+        }
+
+//        this.pnlCards.add(pnlGeneric, "GenericPanel" );
         this.hideShowPanels();
     }
 
-    void hideShowPanels() {
+    private void hideShowPanels() {
         final CardLayout layout = (CardLayout)this.pnlCards.getLayout();
         this.enableControls(true);
         layout.show(this.pnlCards, PLUGIN_GENERIC_PANEL);
@@ -180,7 +205,8 @@ public class Plugin extends FishbowlPlugin implements PropertyGetter, Repository
             this.btnSave = new FBMainToolbarButton();
 
             //GENERIC PANEL
-            this.pnlGeneric  = new JPanel();
+            //this.pnlGeneric  = new JPanel();
+            this.clientSettingsPanel = new clientSettingsPanelImpl();
 
             this.mainToolBar.setFloatable(false);
             this.mainToolBar.setRollover(true);
@@ -188,7 +214,7 @@ public class Plugin extends FishbowlPlugin implements PropertyGetter, Repository
 
             this.btnSave.setIcon((Icon) new ImageIcon(this.getClass().getResource("/icon24/filesystem/disks/disk_gold.png")));
             this.btnSave.setText("Save");
-            this.btnSave.setToolTipText("Save your Plugin settings."); //CHANGE NAME
+            this.btnSave.setToolTipText("Save your Scanner Plugin settings."); //CHANGE NAME
             this.btnSave.setHorizontalTextPosition(0);
             this.btnSave.setIconTextGap(0);
             this.btnSave.setMargin(new Insets(0, 2, 0, 2));
@@ -197,7 +223,7 @@ public class Plugin extends FishbowlPlugin implements PropertyGetter, Repository
             this.btnSave.addActionListener((ActionListener) new ActionListener() {
                 @Override
                 public void actionPerformed(final ActionEvent e) {
-                    Plugin.this.btnSaveActionPerformed();
+                    ScannerPlugin.this.btnSaveActionPerformed();
                 }
             });
             this.mainToolBar.add((Component) this.btnSave);
