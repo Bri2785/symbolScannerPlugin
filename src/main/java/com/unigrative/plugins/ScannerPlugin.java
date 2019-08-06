@@ -30,7 +30,7 @@ public class ScannerPlugin extends FishbowlPlugin implements PropertyGetter, Rep
 
     private static final String PLUGIN_GENERIC_PANEL = "pluginGenericPanel";
 
-    private static final String SCANNER_MODULE = "ScannerModule";
+    public static final String SCANNER_MODULE = "ScannerModule";
 
     private Repository repository;
 

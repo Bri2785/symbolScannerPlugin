@@ -2,6 +2,7 @@
 
 package com.evnt.client.modules.so;
 
+import com.evnt.client.common.ClientProperties;
 import com.evnt.client.common.EVEManager;
 import com.evnt.client.common.EVEManagerUtil;
 import com.evnt.client.modules.ship.ShipModuleClient;
@@ -28,6 +29,7 @@ import com.fbi.util.logging.FBLogger;
 import com.unigrative.plugins.Models.Scanners;
 import com.unigrative.plugins.ScannerPlugin;
 import com.unigrative.plugins.common.DirectIOCommands;
+import com.unigrative.plugins.common.ScannerModuleEnum;
 import jpos.JposException;
 import jpos.Scanner;
 import jpos.config.JposEntry;
@@ -67,6 +69,7 @@ public class ScannerButton
     private static final Logger LOGGER = FBLogger.getLogger();//ScannerButton.class);
     private SOModuleClient _SOModuleClient;
     private ShipModuleClient _ShipModuleClient;
+    private ScannerModuleEnum selectedModule;
 
     EVEManager eveManager = EVEManagerUtil.getEveManager();
     private List<CustomField> soItemCustomFieldList;
@@ -111,7 +114,7 @@ public class ScannerButton
             }
         });
 
-        _SOModuleClient = (SOModuleClient)ScannerPlugin.getInstance().getModule("Sales Order");
+        initModule();
         initScanner();
 
     }
@@ -151,7 +154,19 @@ public class ScannerButton
     }
 
 
-
+    private void initModule(){
+        if (selectedModule == null || !selectedModule.equals(ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE))) {
+            if (ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE).equals(ScannerModuleEnum.SHIPPING.getValue())) {
+                _ShipModuleClient = (ShipModuleClient) ScannerPlugin.getInstance().getModule(ScannerModuleEnum.SHIPPING.getValue());
+                _SOModuleClient = null;
+                selectedModule = ScannerModuleEnum.SHIPPING;
+            } else {
+                _SOModuleClient = (SOModuleClient) ScannerPlugin.getInstance().getModule(ScannerModuleEnum.SALES_ORDER.getValue());
+                _ShipModuleClient = null;
+                selectedModule = ScannerModuleEnum.SALES_ORDER;
+            }
+        }
+    }
 
     ///////BARCODE SCANNER METHODS
     public void initScanner() {
@@ -390,32 +405,24 @@ public class ScannerButton
     @Override
     public void dataOccurred(DataEvent dataEvent) {
 
-//        LOGGER.error("modified right at beginning of data event: " + _SOModuleClient.getController().isModified());
+        String data = null;
 
+        if (!isDebug) {
 
-        String upc = null;
-
-        if(!isDebug) {
-//            try {
-//                LOGGER.error(_SOModuleClient.so.getSoFpo().getNum());
-//            }
-//            catch (Exception e){
-//                LOGGER.error("error", e);
-//            }
             //get upc first
             try {
 
                 Scanner scn = (Scanner) dataEvent.getSource();
                 if (scn.equals(scanner)) {
-                    upc = new String(scanner.getScanData());
+                    data = new String(scanner.getScanData());
                 } else {
                     //scn.setDataEventEnabled(true);
-                    upc = new String(scn.getScanData());
+                    data = new String(scn.getScanData());
                     LOGGER.info("From scn object: " + new String(scn.getScanData()));
                 }
 
                 //UtilGui.showMessageDialog( "Scanned data: " + upc);
-                LOGGER.info("Scan data: " + upc);
+                LOGGER.info("Scan data: " + data);
 
 
                 scanner.setDeviceEnabled(false); //disable between scans to keep from jamming up
@@ -423,63 +430,25 @@ public class ScannerButton
                 LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
             }
 
-            //check for RCL
-            //check the data returned
-            //if it is a RCL_ event, then open the SO module and recall the order
-            //else add product to order
-            if (upc.substring(0,4).equals("RCL_")){
-//                    this._SOModuleClient.showModule("Sales Order");
-                ScannerPlugin.getInstance().showModule("Sales Order");
-                LOGGER.error("SO NUM: " + upc.substring(4));
-                this._SOModuleClient.loadSO(upc.substring(4));
-
-
-            }
-            else {
-                //product scanned, check SO state
-                if (!isEligibleForAdd()) {
-
-                    //LOGGER.error(AddItemButton.this.getObjectId());
-                    actionScannerError();
-
-                    JOptionPane.showMessageDialog(null, "Check the current open salesorder order"); //returns the SOID
-
-                } else {
-
-                    _SOModuleClient.getController().setModified(false);
-
-                    //load product
-                    int productID = getProductID(upc);
-                    LOGGER.info("Product ID = " + productID);
-
-
-                    if (productID != 0) {
-                        LOGGER.info("Adding item to SO");
-                        addItemToSO(productID);
-                    } else {
-                        LOGGER.info("Product not found");
-                        actionScannerError();
-
-                        UtilGui.showMessageDialog("Product Not found");
-                    }
-                    //renable the scanner - moved below
-//                    try {
-//                        scanner.setDataEventEnabled(true);
-//                        scanner.setDeviceEnabled(true);
-//                    } catch (JposException je) {
-//                        LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
-//                    }
-                }
+            initModule(); //confirm that the settings havent been changed
+            switch (selectedModule) {
+                case SALES_ORDER:
+                    handleSoScan(data);
+                    break;
+                case SHIPPING:
+                    handleShipScan(data);
+                    break;
             }
 
-            try {
-                scanner.setDataEventEnabled(true);
-                scanner.setDeviceEnabled(true);
+        //re-enable scanner
+        try {
+            scanner.setDataEventEnabled(true);
+            scanner.setDeviceEnabled(true);
 
-            } catch (JposException je) {
-                LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
-            }
+        } catch (JposException je) {
+            LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
         }
+    }
         else {
             try {
 
@@ -488,17 +457,17 @@ public class ScannerButton
                     //if (autoDataEventEnableCB.isSelected()) {
                     scanner.setDataEventEnabled(true);
                     //}
-                    upc = new String(scanner.getScanData());
+                    data = new String(scanner.getScanData());
 
                 } else {
                     scn.setDataEventEnabled(true);
-                    upc = new String(scn.getScanData());
+                    data = new String(scn.getScanData());
                     System.err.println( "From scn object: " + new String(scn.getScanData()));
                 }
                 scanner.setDeviceEnabled(true); //renable device after scan TODO: maybe move this to after the FB product load
 
                 //JOptionPane.showMessageDialog(null, "Scanned data: " + upc);
-                System.err.println("Scan data: " + upc);
+                System.err.println("Scan data: " + data);
 
 
             } catch (JposException je) {
@@ -519,6 +488,70 @@ public class ScannerButton
             }
 
 
+        }
+    }
+
+    private void handleShipScan(String data) {
+        //should be a ship num but we cant know for sure
+        //we can add a prefix of SP_
+        if (data.substring(0,3).equals("SP_")) {
+
+            ScannerPlugin.getInstance().showModule(ScannerModuleEnum.SHIPPING.getValue());
+            int shipID;
+            try{
+                shipID = Integer.parseInt(data.substring(3));
+            }
+            catch (NumberFormatException e){
+                actionScannerError();
+                UtilGui.showMessageDialog("Shipment Number, bad format /n" + e.getMessage() );
+                return;
+            }
+
+            this._ShipModuleClient.loadShipment(shipID);
+        }
+        else{
+            //not shipment -> show error?
+            actionScannerError();
+
+            UtilGui.showMessageDialog("Shipment Not found -> " + data);
+        }
+    }
+
+    private void handleSoScan(String data) {
+        //check for RCL
+        //check the data returned
+        //if it is a RCL_ event, then open the SO module and recall the order
+        //else add product to order
+        if (data.substring(0,4).equals("RCL_")){
+
+            ScannerPlugin.getInstance().showModule("Sales Order");
+            LOGGER.error("SO NUM: " + data.substring(4));
+            this._SOModuleClient.loadSO(data.substring(4));
+        } else {
+            //product scanned, check SO state
+            if (!isEligibleForAdd()) {
+                actionScannerError();
+                JOptionPane.showMessageDialog(null, "Check the current open sales order"); //returns the SOID
+
+            } else {
+
+                _SOModuleClient.getController().setModified(false);
+
+                //load product
+                int productID = getProductID(data);
+                LOGGER.info("Product ID = " + productID);
+
+
+                if (productID != 0) {
+                    LOGGER.info("Adding item to SO");
+                    addItemToSO(productID);
+                } else {
+                    LOGGER.info("Product not found");
+                    actionScannerError();
+
+                    UtilGui.showMessageDialog("Product Not found");
+                }
+            }
         }
     }
 
@@ -940,7 +973,7 @@ public class ScannerButton
                 if (addCorePart) {
                     final String coreMask = SystemPropertyConst.PRODUCT_CORE_MASK.getString();
                     if (coreMask != null && coreMask.length() > 0) {
-                        final EVEvent event = eveManager.createRequest("Product", "getCoreProducts");
+                        final EVEvent event = eveManager.createRequest(MethodConst.GET_CORE_PRODUCTS);
                         event.add((Object) "Product Number", soItem.getSalesOrderItemFpo().getProductNum() + coreMask);
                         final EVEvent response = eveManager.sendAndWait(event);
                         if (response.getMessageType() == 201) {
