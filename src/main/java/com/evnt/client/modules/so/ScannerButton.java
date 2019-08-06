@@ -45,9 +45,9 @@ import jpos.loader.JposServiceLoader;
 import jpos.loader.JposServiceManager;
 import jpos.services.BaseService;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.Priority;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import javax.swing.*;
 import javax.swing.table.TableColumn;
@@ -66,7 +66,7 @@ import java.util.Timer;
 
 public class ScannerButton
         extends FishbowlPluginButton implements DataListener, ErrorListener {
-    private static final Logger LOGGER = FBLogger.getLogger();//ScannerButton.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScannerButton.class);
     private SOModuleClient _SOModuleClient;
     private ShipModuleClient _ShipModuleClient;
     private ScannerModuleEnum selectedModule;
@@ -114,7 +114,7 @@ public class ScannerButton
             }
         });
 
-        initModule();
+
         initScanner();
 
     }
@@ -154,8 +154,15 @@ public class ScannerButton
     }
 
 
-    private void initModule(){
-        if (selectedModule == null || !selectedModule.equals(ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE))) {
+    private void initModule() {
+        LOGGER.info("Selected module - " + selectedModule);
+        LOGGER.info("Client properties value - " + ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE));
+        if (ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE) == null) {
+            //default to sales order module if setting hasn't been set yet
+            _SOModuleClient = (SOModuleClient) ScannerPlugin.getInstance().getModule(ScannerModuleEnum.SALES_ORDER.getValue());
+            _ShipModuleClient = null;
+            selectedModule = ScannerModuleEnum.SALES_ORDER;
+        } else {
             if (ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE).equals(ScannerModuleEnum.SHIPPING.getValue())) {
                 _ShipModuleClient = (ShipModuleClient) ScannerPlugin.getInstance().getModule(ScannerModuleEnum.SHIPPING.getValue());
                 _SOModuleClient = null;
@@ -166,6 +173,7 @@ public class ScannerButton
                 selectedModule = ScannerModuleEnum.SALES_ORDER;
             }
         }
+
     }
 
     ///////BARCODE SCANNER METHODS
@@ -430,25 +438,35 @@ public class ScannerButton
                 LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
             }
 
-            initModule(); //confirm that the settings havent been changed
-            switch (selectedModule) {
-                case SALES_ORDER:
-                    handleSoScan(data);
-                    break;
-                case SHIPPING:
-                    handleShipScan(data);
-                    break;
+
+            //handle scan
+            try {
+                initModule(); //confirm that the settings havent been changed
+                LOGGER.info("Modules verified");
+                switch (selectedModule) {
+                    case SALES_ORDER:
+                        handleSoScan(data);
+                        break;
+                    case SHIPPING:
+                        handleShipScan(data);
+                        break;
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error handling scan", e);
             }
 
-        //re-enable scanner
-        try {
-            scanner.setDataEventEnabled(true);
-            scanner.setDeviceEnabled(true);
+            // re-enable scanner
+            try {
 
-        } catch (JposException je) {
-            LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
+
+                scanner.setDataEventEnabled(true);
+                scanner.setDeviceEnabled(true);
+
+            } catch (JposException je) {
+                LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
+            }
+
         }
-    }
         else {
             try {
 
@@ -760,6 +778,7 @@ public class ScannerButton
         query.append("from product ");
         query.append("WHERE (UPPER(num) = UPPER('").append(upc).append("') ");
         query.append("OR Upc = '").append(upc).append("') ");
+        LOGGER.info(query.toString());
         List stateRows = this.runQuery(query.toString());
         if (!Util.isEmpty((List) stateRows)) {
             return ((QueryRow) stateRows.get(0)).getInt("id");
@@ -991,13 +1010,13 @@ public class ScannerButton
 
                 _SOModuleClient.displayOnLineDisplay(soItem);
             } catch (IllegalArgumentException e4) {
-                this.LOGGER.log((Priority) Level.ERROR, (Object) e4.getMessage(), (Throwable) e4);
+                this.LOGGER.error(e4.getMessage(), (Throwable) e4);
                 final OptionMessage msg = new OptionMessage(e4.getMessage());
                 UtilGui.showErrorMessageDialog(e4.getMessage(), "SO Item Error");
                 //_SOModuleClient.quantityFormattedTextField.requestFocus();
                 return null;
             } catch (Exception e5) {
-                this.LOGGER.log((Priority) Level.ERROR, (Object) e5.getMessage(), (Throwable) e5);
+                this.LOGGER.error ( e5.getMessage(), (Throwable) e5);
                 //this.quantityFormattedTextField.requestFocus();
                 return null;
             }
