@@ -30,6 +30,7 @@ import com.unigrative.plugins.Models.Scanners;
 import com.unigrative.plugins.ScannerPlugin;
 import com.unigrative.plugins.common.DirectIOCommands;
 import com.unigrative.plugins.common.ScannerModuleEnum;
+import com.unigrative.plugins.util.property.PropertyGetter;
 import jpos.JposException;
 import jpos.Scanner;
 import jpos.config.JposEntry;
@@ -75,7 +76,11 @@ public class ScannerButton
     private List<CustomField> soItemCustomFieldList;
 
 
-    private boolean isDebug; //Set after we scan until FB is done processing; //TODO: look at finishedAdding bool in add method
+    public void setDebug(boolean debug) {
+        isDebug = debug;
+    }
+
+    private boolean isDebug = false; //Set after we scan until FB is done processing; //TODO: look at finishedAdding bool in add method
 
     /////BARCODE SCANNER OBJECTS
     private Scanner scanner = null;
@@ -93,6 +98,8 @@ public class ScannerButton
     protected ScannerButton(String moduleName) {
         this.setModuleName(moduleName);
         this.setPluginName(ScannerPlugin.MODULE_NAME);
+
+        //icon change when not connected
         this.setIcon((Icon) new ImageIcon(this.getClass().getResource("/images/barcode-scanner24x24.png")));
         this.setText("Scanner");
 
@@ -114,6 +121,10 @@ public class ScannerButton
             }
         });
 
+//        String debugMode = ScannerPlugin.getInstance().getProperty("DebugMode");
+//        if (debugMode != null){
+//            this.isDebug =  Boolean.valueOf(debugMode);
+//        }
 
         initScanner();
 
@@ -155,8 +166,8 @@ public class ScannerButton
 
 
     private void initModule() {
-        LOGGER.info("Selected module - " + selectedModule);
-        LOGGER.info("Client properties value - " + ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE));
+        LOGGER.debug("Selected module - " + selectedModule);
+        LOGGER.debug("Client properties value - " + ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE));
         if (ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE) == null) {
             //default to sales order module if setting hasn't been set yet
             _SOModuleClient = (SOModuleClient) ScannerPlugin.getInstance().getModule(ScannerModuleEnum.SALES_ORDER.getValue());
@@ -173,6 +184,10 @@ public class ScannerButton
                 selectedModule = ScannerModuleEnum.SALES_ORDER;
             }
         }
+
+//        if (isDebug){
+            LOGGER.debug("Final selected module - " + selectedModule.getValue());
+//        }
 
     }
 
@@ -197,6 +212,9 @@ public class ScannerButton
 
         try {
 
+//            if (isDebug){
+            LOGGER.debug("Starting Scanner Init");
+//            }
             //LOGGER.error("System property: " + System.getProperty(JposPropertiesConst.JPOS_POPULATOR_FILE_URL_PROP_NAME));
 
             //JOptionPane.showMessageDialog(null, makeScannerTable());
@@ -346,38 +364,61 @@ public class ScannerButton
         }
 
 
-        try {
+        LOGGER.debug("Scanner is opened and listeners attached");
+        boolean claimed = false;
+            try {
+                claimed = scanner.getClaimed();
+                LOGGER.debug("Scanner claimed status: " + claimed);
 
-            if (!scanner.getClaimed()) {
+                if (!claimed) {
 
-                //_SOModuleClient = SOAddonsPlugin.getInstance().getModule("Sales Order");
+                    //_SOModuleClient = SOAddonsPlugin.getInstance().getModule("Sales Order");
 
-                //not claimed yet so claim
-                try {
-                    scanner.claim(1000);
+                    //not claimed yet so claim
+                    try {
+                        scanner.claim(1000);
 
-                    scanner.setDeviceEnabled(true);
-                    scanner.setDataEventEnabled(true);
-                    scanner.setDecodeData(true);
-                    scanner.setAutoDisable(false);
+                        scanner.setDeviceEnabled(true);
+                        scanner.setDataEventEnabled(true);
+                        scanner.setDecodeData(true);
+                        scanner.setAutoDisable(false);
 
-                    //set the correct id for the direct IO commands
-                    //this.LI2478_id = this.getCorrectScannerID();
-                    DirectIOCommands.scannerID = this.getCorrectScannerID();
+                        //set the correct id for the direct IO commands
+                        //this.LI2478_id = this.getCorrectScannerID();
+
+                        int scannerId = this.getCorrectScannerID();
+
+                        if (scannerId == -1) {
+                            //our correct scanner not found so do not claim and disable the scanner
+                            try {
+                                scanner.removeDataListener(this);
+                                scanner.removeErrorListener(this);
+                                scanner.close();
+                            }
+                            catch (JposException e){
+                                LOGGER.error("Error closing scanner", e);
+                            }
+                            finally {
+                                scanner = null;
+                            }
+                            LOGGER.debug("LI4278 scanner not found in the list, disabling");
+
+                        } else {
+                            DirectIOCommands.scannerID = scannerId;
+                            LOGGER.debug("Correct scanner ID: " + scannerId);
+                        }
 
 
-                    //if (isDebug){
-                    LOGGER.info("correct scanner ID: " + DirectIOCommands.scannerID );
-                    //}
 
-                } catch (JposException e) {
-                    //JOptionPane.showMessageDialog(null, "Failed to claim \"" + "ZebraAllScanners" + "\"\nException: " + e.getMessage(), "Failed", JOptionPane.ERROR_MESSAGE);
-                    //TODO: Swallow error so it works on computers without the device?
-                    //LOGGER.error("Jpos exception on claim ", e);
 
-                }
+                    } catch (JposException e) {
+                        //JOptionPane.showMessageDialog(null, "Failed to claim \"" + "ZebraAllScanners" + "\"\nException: " + e.getMessage(), "Failed", JOptionPane.ERROR_MESSAGE);
+                        //TODO: Swallow error so it works on computers without the device?
+                        LOGGER.error("Jpos exception on claim ", e);
 
-                //TODO: if claimed success, change button color?
+                    }
+
+                    //TODO: if claimed success, change button color?
 //
 //                try {
 //                    UtilGui.showMessageDialog(scanner.getPhysicalDeviceName());
@@ -401,13 +442,16 @@ public class ScannerButton
 //                    JOptionPane.showMessageDialog(null, "Exception in Info\nException: " + e.getMessage(), "Exception", JOptionPane.ERROR_MESSAGE);
 //                    System.err.println("Jpos exception " + e);
 //                }
+                }
+            } catch (JposException e) {
+                //JOptionPane.showMessageDialog(null, "Failed to check claim \"" + "ZebraAllScanners" + "\"\nException: " + e.getMessage(), "Failed", JOptionPane.ERROR_MESSAGE);
+                LOGGER.error("Jpos exception on claim", e);
+                //TODO: toggle the icons
             }
-        } catch (JposException e) {
-            //JOptionPane.showMessageDialog(null, "Failed to check claim \"" + "ZebraAllScanners" + "\"\nException: " + e.getMessage(), "Failed", JOptionPane.ERROR_MESSAGE);
-            LOGGER.error("Jpos exception on check claim in init ", e);
-        }
-        LOGGER.info("Ready");
-
+            if (scanner != null && claimed) {
+                //TODO: toggle the icons
+                LOGGER.info("Scanner Ready");
+            }
     }
 
     @Override
@@ -415,7 +459,7 @@ public class ScannerButton
 
         String data = null;
 
-        if (!isDebug) {
+//        if (!isDebug) {
 
             //get upc first
             try {
@@ -426,14 +470,17 @@ public class ScannerButton
                 } else {
                     //scn.setDataEventEnabled(true);
                     data = new String(scn.getScanData());
-                    LOGGER.info("From scn object: " + new String(scn.getScanData()));
+                    LOGGER.debug("From scn object: " + data);
                 }
 
                 //UtilGui.showMessageDialog( "Scanned data: " + upc);
-                LOGGER.info("Scan data: " + data);
+                LOGGER.debug("Scan data: " + data);
 
 
                 scanner.setDeviceEnabled(false); //disable between scans to keep from jamming up
+//                if (isDebug){
+                    LOGGER.debug("Scanner disables while processing");
+//                }
             } catch (JposException je) {
                 LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
             }
@@ -442,7 +489,7 @@ public class ScannerButton
             //handle scan
             try {
                 initModule(); //confirm that the settings havent been changed
-                LOGGER.info("Modules verified");
+                LOGGER.debug("Module verified and selected");
                 switch (selectedModule) {
                     case SALES_ORDER:
                         handleSoScan(data);
@@ -455,6 +502,9 @@ public class ScannerButton
                 LOGGER.error("Error handling scan", e);
             }
 
+//        if (isDebug){
+            LOGGER.debug("Finished handling scan, re-enabling scanner");
+//        }
             // re-enable scanner
             try {
 
@@ -466,52 +516,58 @@ public class ScannerButton
                 LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
             }
 
-        }
-        else {
-            try {
-
-                Scanner scn = (Scanner) dataEvent.getSource();
-                if (scn.equals(scanner)) {
-                    //if (autoDataEventEnableCB.isSelected()) {
-                    scanner.setDataEventEnabled(true);
-                    //}
-                    data = new String(scanner.getScanData());
-
-                } else {
-                    scn.setDataEventEnabled(true);
-                    data = new String(scn.getScanData());
-                    System.err.println( "From scn object: " + new String(scn.getScanData()));
-                }
-                scanner.setDeviceEnabled(true); //renable device after scan TODO: maybe move this to after the FB product load
-
-                //JOptionPane.showMessageDialog(null, "Scanned data: " + upc);
-                System.err.println("Scan data: " + data);
-
-
-            } catch (JposException je) {
-                System.err.println("Scanner: dataOccurred: Jpos Exception" + je);
-            }
-
-            int productID = 0;
-            System.err.println("Product ID = " + productID);
-
-
-            if (productID != 0) {
-                System.err.println("Adding item to SO");
-                addItemToSO(productID);
-            } else {
-                System.err.println("Product not found");
-                //TODO: beep error
-                actionScannerError();
-            }
-
-
-        }
+//        if (isDebug){
+            LOGGER.debug("Finished Scan");
+//        }
+//        }
+//        else {
+//            try {
+//
+//                Scanner scn = (Scanner) dataEvent.getSource();
+//                if (scn.equals(scanner)) {
+//                    //if (autoDataEventEnableCB.isSelected()) {
+//                    scanner.setDataEventEnabled(true);
+//                    //}
+//                    data = new String(scanner.getScanData());
+//
+//                } else {
+//                    scn.setDataEventEnabled(true);
+//                    data = new String(scn.getScanData());
+//                    System.err.println( "From scn object: " + new String(scn.getScanData()));
+//                }
+//                scanner.setDeviceEnabled(true); //renable device after scan TODO: maybe move this to after the FB product load
+//
+//                //JOptionPane.showMessageDialog(null, "Scanned data: " + upc);
+//                System.err.println("Scan data: " + data);
+//
+//
+//            } catch (JposException je) {
+//                System.err.println("Scanner: dataOccurred: Jpos Exception" + je);
+//            }
+//
+//            int productID = 0;
+//            System.err.println("Product ID = " + productID);
+//
+//
+//            if (productID != 0) {
+//                System.err.println("Adding item to SO");
+//                addItemToSO(productID);
+//            } else {
+//                System.err.println("Product not found");
+//                //TODO: beep error
+//                actionScannerError();
+//            }
+//
+//
+//        }
     }
 
     private void handleShipScan(String data) {
         //should be a ship num but we cant know for sure
         //we can add a prefix of SP_
+//        if (isDebug){
+            LOGGER.debug("Handling Ship Scan - " + data);
+//        }
         if (data.substring(0,3).equals("SP_")) {
 
             ScannerPlugin.getInstance().showModule(ScannerModuleEnum.SHIPPING.getValue());
@@ -524,6 +580,10 @@ public class ScannerButton
                 UtilGui.showMessageDialog("Shipment Number, bad format /n" + e.getMessage() );
                 return;
             }
+
+//            if (isDebug){
+                LOGGER.debug("Ship ID = " + shipID);
+//            }
 
             this._ShipModuleClient.loadShipment(shipID);
         }
@@ -540,12 +600,25 @@ public class ScannerButton
         //check the data returned
         //if it is a RCL_ event, then open the SO module and recall the order
         //else add product to order
+//        if (isDebug){
+            LOGGER.debug("Handling SO Scan Data - " + data);
+//        }
+
+
         if (data.substring(0,4).equals("RCL_")){
+//            if (isDebug){
+                LOGGER.debug("Order Recall scanned");
+//            }
 
             ScannerPlugin.getInstance().showModule("Sales Order");
-            LOGGER.error("SO NUM: " + data.substring(4));
+            LOGGER.debug("SO NUM: " + data.substring(4));
+
             this._SOModuleClient.loadSO(data.substring(4));
+
         } else {
+//            if (isDebug){
+                LOGGER.debug("Product Scanned");
+//            }
             //product scanned, check SO state
             if (!isEligibleForAdd()) {
                 actionScannerError();
@@ -556,8 +629,12 @@ public class ScannerButton
                 _SOModuleClient.getController().setModified(false);
 
                 //load product
+//                if (isDebug){
+                    LOGGER.debug("Lookup Product ID");
+//                }
+
                 int productID = getProductID(data);
-                LOGGER.info("Product ID = " + productID);
+                LOGGER.debug("Product ID = " + productID);
 
 
                 if (productID != 0) {
@@ -585,7 +662,7 @@ public class ScannerButton
         setScannerAction(DirectIOCommands.XML_SET_RED_LED_OFF());
     }
 
-    public String getScanners(){
+    public String getScanners() {
         int[] directIOStatus = new int[1];
         directIOStatus[0] = -1;
         StringBuffer inOutXml = new StringBuffer();
@@ -596,6 +673,10 @@ public class ScannerButton
         } catch (JposException ex) {
             LOGGER.error("Jpos exception: " + ex.getMessage() + " " + ex.getOrigException());
         }
+
+//        if (isDebug){
+        LOGGER.debug("Getting scanners XML - " + inOutXml.toString());
+//        }
 
         return inOutXml.toString();
     }
@@ -615,12 +696,15 @@ public class ScannerButton
 
         for (com.unigrative.plugins.Models.Scanner scanner: scannerList.getScanners()
         ) {
+//            if (isDebug){
+                LOGGER.debug("Scanner List, Model Number -> " + scanner.getModelnumber() + ", ID -> " + scanner.getScannerID());
+//            }
             if (scanner.getModelnumber().substring(0,6).equals("LI4278")){
                 return scanner.getScannerID();
             }
         }
 
-        return 0;
+        return -1;
     }
 
     public void setScannerAction(String xmlCommand){
@@ -667,7 +751,13 @@ public class ScannerButton
         }
         //re-initalize
         initScanner();
-        UtilGui.showMessageDialog("Scanner Reset");
+        if (scanner != null){
+            UtilGui.showMessageDialog("Scanner Reset");
+        }
+        else{
+            UtilGui.showMessageDialog("Scanner was not able to be reset, check logs");
+        }
+
     }
 
 
@@ -778,7 +868,7 @@ public class ScannerButton
         query.append("from product ");
         query.append("WHERE (UPPER(num) = UPPER('").append(upc).append("') ");
         query.append("OR Upc = '").append(upc).append("') ");
-        LOGGER.info(query.toString());
+        LOGGER.debug("Product lookup query - " + query.toString());
         List stateRows = this.runQuery(query.toString());
         if (!Util.isEmpty((List) stateRows)) {
             return ((QueryRow) stateRows.get(0)).getInt("id");
@@ -1094,4 +1184,5 @@ public class ScannerButton
         return -1;
 
     }
+
 }

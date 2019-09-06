@@ -13,6 +13,7 @@ public class clientSettingsPanelImpl extends JPanel {
     private JComboBox cboSelectedModule;
     private JLabel lblSelectedModule;
     private JPanel pnlMain;
+    private JCheckBox chkDebugMode;
 
 
     public String getCboSelectedValue() {
@@ -32,7 +33,12 @@ public class clientSettingsPanelImpl extends JPanel {
         }
     }
 
-
+    public Boolean getDebugModeValue(){
+        return this.chkDebugMode.isSelected();
+    }
+    public void setChkDebugModeValue(Boolean value){
+        this.chkDebugMode.setSelected(value);
+    }
 
     public clientSettingsPanelImpl() {
 
@@ -56,19 +62,20 @@ public class clientSettingsPanelImpl extends JPanel {
         gbc = new GridBagConstraints();
         gbc.gridx = 1;
         gbc.gridy = 0;
+        gbc.gridwidth = 2;
         gbc.weightx = 0.75;
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         pnlMain.add(cboSelectedModule, gbc);
         final JPanel spacer1 = new JPanel();
         gbc = new GridBagConstraints();
-        gbc.gridx = 2;
+        gbc.gridx = 3;
         gbc.gridy = 0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         pnlMain.add(spacer1, gbc);
         final JPanel spacer2 = new JPanel();
         gbc = new GridBagConstraints();
-        gbc.gridx = 1;
+        gbc.gridx = 2;
         gbc.gridy = 1;
         gbc.fill = GridBagConstraints.VERTICAL;
         pnlMain.add(spacer2, gbc);
@@ -81,6 +88,13 @@ public class clientSettingsPanelImpl extends JPanel {
         gbc.anchor = GridBagConstraints.EAST;
         gbc.ipadx = 15;
         pnlMain.add(lblSelectedModule, gbc);
+        chkDebugMode = new JCheckBox();
+        chkDebugMode.setText("Debug Enabled");
+        gbc = new GridBagConstraints();
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        pnlMain.add(chkDebugMode, gbc);
 
         this.add(pnlMain);
 

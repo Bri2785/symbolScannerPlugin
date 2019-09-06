@@ -11,6 +11,7 @@ import com.fbi.sdk.constants.MenuGroupNameConst;
 import com.unigrative.plugins.panels.clientSettingsPanel;
 import com.unigrative.plugins.panels.clientSettingsPanelImpl;
 import com.unigrative.plugins.repository.Repository;
+import com.unigrative.plugins.util.property.Property;
 import com.unigrative.plugins.util.property.PropertyGetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,7 +108,7 @@ public class ScannerPlugin extends FishbowlPlugin implements PropertyGetter, Rep
         //plugin settings
         final Map<String, String> properties = new HashMap<>();
 
-//        properties.put(Property.USERNAME.getKey(), txtUsername.getText());
+        properties.put(Property.DEBUG_MODE.getKey(), this.clientSettingsPanel.getDebugModeValue().toString());
 //        properties.put(Property.PASSWORD.getKey(), Encryptor.getInstance().encrypt(txtPassword.getText()));
 //        properties.put(Property.SQL_CONNECTION_URL.getKey(), txtSqlConnectionUrl.getText());
 //
@@ -182,6 +183,14 @@ public class ScannerPlugin extends FishbowlPlugin implements PropertyGetter, Rep
         if (selectedModule != null) {
             this.clientSettingsPanel.setCboSelectedValue(selectedModule);
         }
+//        String debugMode = getProperty("DebugMode");
+//        if (debugMode != null){
+//            this.clientSettingsPanel.setChkDebugModeValue(Boolean.valueOf(debugMode));
+//        }
+//        else{
+//            this.clientSettingsPanel.setChkDebugModeValue(false);
+//        }
+
 
 //        this.pnlCards.add(pnlGeneric, "GenericPanel" );
         this.hideShowPanels();
