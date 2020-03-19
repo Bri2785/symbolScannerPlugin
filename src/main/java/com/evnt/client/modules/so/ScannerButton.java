@@ -11,6 +11,7 @@ import com.evnt.common.MethodConst;
 import com.evnt.common.data.soitem.SOItem;
 import com.evnt.eve.event.EVEvent;
 import com.evnt.eve.modules.CustomFieldModule;
+import com.evnt.eve.modules.logic.extra.LogicCustomField;
 import com.evnt.ui.OptionMessage;
 import com.evnt.util.KeyConst;
 import com.evnt.util.Money;
@@ -950,7 +951,7 @@ public class ScannerButton
                 ProductFpo productFPO = null;
 
                 while (!finishedAdding) {
-                    soItem = _SOModuleClient.so.createSOItem();
+                    soItem = _SOModuleClient.so.createSoItem();
                     soItem.setCustomFieldList((List) SerializationUtils.clone((Serializable) (ArrayList) this.soItemCustomFieldList));
                     soItem.setProductID(productId, _SOModuleClient.so.getSoFpo().getCustomerId());
                     //this checks if the qty entered fits into the uom selected. We are always doing 1 so we dont need this
@@ -1127,7 +1128,7 @@ public class ScannerButton
         request.add((Object)KeyConst.RecordID, productId);
         final EVEvent response = eveManager.sendAndWait(request);
         final List<CustomField> productCustomFieldList = (List<CustomField>)response.getList((Object)KeyConst.CUSTOM_FIELDS, (Class)CustomField.class);
-        CustomFieldModule.mapCustomFields((List)productCustomFieldList, soItem.getCustomFieldList());
+        LogicCustomField.mapCustomFields((List)productCustomFieldList, soItem.getCustomFieldList());
     }
 
 
