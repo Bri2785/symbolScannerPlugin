@@ -932,27 +932,18 @@ public class ScannerButton
 
     ////// COPIED METHODS FROM EXISTING MODULES, CHECK ON FB UPDATE THAT THESE ARE THE SAME
     private SOItem addProductToSO(final int productId, Quantity qty, final Money price, final boolean changeQty) {
-//        if (_SOModuleClient.so.== null){
-//            LOGGER.error("SO is null");
-//        }
-//        else{
-//            LOGGER.error(_SOModuleClient.so.getCustomerFPO().getName());
-//        }
-
         SOItem soItem = null;
-        final DlgInvShort dlgInvShort = new DlgInvShort();
-        //LOGGER.error("Module is modified :" + _SOModuleClient.getController().isModified());
-        //_SOModuleClient.getController().setModified(false);
-        //LOGGER.error("Module is modified :" + _SOModuleClient.getController().isModified());
+
         if (productId > 0 && qty.greaterThan(0)) {
             try {
                 boolean addCorePart = true;
                 boolean finishedAdding = false;
                 ProductFpo productFPO = null;
+                final DlgInvShort dlgInvShort = new DlgInvShort();
 
                 while (!finishedAdding) {
                     soItem = _SOModuleClient.so.createSoItem();
-                    soItem.setCustomFieldList((List) SerializationUtils.clone((Serializable) (ArrayList) this.soItemCustomFieldList));
+                    soItem.getSalesOrderItemFpo().setCustomFieldMap(LogicCustomField.createCustomFieldMap(this.soItemCustomFieldList));
                     soItem.setProductID(productId, _SOModuleClient.so.getSoFpo().getCustomerId());
                     //this checks if the qty entered fits into the uom selected. We are always doing 1 so we dont need this
 //                    if (!checkSOItemQtyAndUOM(qty, soItem.getUom())) {
@@ -963,7 +954,7 @@ public class ScannerButton
                         soItem.getSalesOrderItemFpo().setTotalPrice(price);
                     }
                     if (SystemPropertyConst.CUSTOM_FIELD_PRODUCT_TO_SO_ITEM.getBoolean()) {
-                        this.mapCustomFields(productId, soItem);
+                        LogicCustomField.mapCustomFields(soItem.getProductFpo().getCustomFieldMap(), soItem.getSalesOrderItemFpo(), RecordTypeConst.PRODUCT, RecordTypeConst.SO_ITEM);
                     }
                     final PartFpo partFpo = soItem.getPartFpo();
                     productFPO = soItem.getProductFpo();
@@ -1001,7 +992,7 @@ public class ScannerButton
                                     break;
                                 }
                                 case 2: {
-                                    SODropShipChecker.checkVendorRelationShip(eveManager, soItem.getPartID());
+                                    SODropShipChecker.checkVendorRelationShip(eveManager, soItem);
                                     soItem.setType(SOItemTypeConst.DROP_SHIP);
                                     try {
                                         _SOModuleClient.so.addItem(soItem);
@@ -1122,14 +1113,14 @@ public class ScannerButton
         return soItem;
     }
 
-    private void mapCustomFields(final int productId, final SOItem soItem) {
-        final EVEvent request = eveManager.createRequest(MethodConst.GET_CUSTOM_FIELD_VALUES);
-        request.addObject((Object) KeyConst.TABLE_ID, (Serializable) RecordTypeConst.PRODUCT);
-        request.add((Object)KeyConst.RecordID, productId);
-        final EVEvent response = eveManager.sendAndWait(request);
-        final List<CustomField> productCustomFieldList = (List<CustomField>)response.getList((Object)KeyConst.CUSTOM_FIELDS, (Class)CustomField.class);
-        LogicCustomField.mapCustomFields((List)productCustomFieldList, soItem.getCustomFieldList());
-    }
+//    private void mapCustomFields(final int productId, final SOItem soItem) {
+//        final EVEvent request = eveManager.createRequest(MethodConst.GET_CUSTOM_FIELD_VALUES);
+//        request.addObject((Object) KeyConst.TABLE_ID, (Serializable) RecordTypeConst.PRODUCT);
+//        request.add((Object)KeyConst.RecordID, productId);
+//        final EVEvent response = eveManager.sendAndWait(request);
+//        final List<CustomField> productCustomFieldList = (List<CustomField>)response.getList((Object)KeyConst.CUSTOM_FIELDS, (Class)CustomField.class);
+//        LogicCustomField.mapCustomFields((List)productCustomFieldList, soItem.getCustomFieldList());
+//    }
 
 
 
