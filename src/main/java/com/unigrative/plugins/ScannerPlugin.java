@@ -3,12 +3,12 @@ package com.unigrative.plugins;
 import com.evnt.client.common.ClientProperties;
 import com.evnt.client.common.EVEManager;
 import com.evnt.client.common.EVEManagerUtil;
+import com.evnt.common.swing.swingutil.RefreshTitlePanel;
 import com.fbi.fbo.impl.dataexport.QueryRow;
 import com.fbi.gui.button.FBMainToolbarButton;
 import com.fbi.gui.panel.TitlePanel;
 import com.fbi.plugins.FishbowlPlugin;
 import com.fbi.sdk.constants.MenuGroupNameConst;
-import com.unigrative.plugins.panels.clientSettingsPanel;
 import com.unigrative.plugins.panels.clientSettingsPanelImpl;
 import com.unigrative.plugins.repository.Repository;
 import com.unigrative.plugins.util.property.Property;
@@ -39,11 +39,11 @@ public class ScannerPlugin extends FishbowlPlugin implements PropertyGetter, Rep
 
     EVEManager eveManager = EVEManagerUtil.getEveManager(); //get access to eve manager
 
-    private TitlePanel titleLabel;
+    private RefreshTitlePanel titlePanel;
     private JToolBar mainToolBar;
     private FBMainToolbarButton btnSave;
 
-    private JPanel pnlCards;
+    private JPanel pnlContent;
     //private JPanel pnlGeneric;
 
     private clientSettingsPanelImpl clientSettingsPanel;
@@ -168,13 +168,7 @@ public class ScannerPlugin extends FishbowlPlugin implements PropertyGetter, Rep
     }
 
     private void initLayout() {
-        //PANELS TO BE ADDED TO THE TABBED LAYOUT IF DESIRED
-//        JLabel lblMessage = new JLabel();
-//        lblMessage.setText("This plugin is for...."); //CHANGE
-//
-//
-//        this.pnlCards.add(lblMessage);
-        this.pnlCards.add(clientSettingsPanel, PLUGIN_GENERIC_PANEL);
+        this.pnlContent.add(clientSettingsPanel, "Center");
 
         String selectedModule = ClientProperties.getProperty(SCANNER_MODULE, null);
         LOGGER.debug("Selected cbobox module = " + selectedModule);
@@ -193,14 +187,14 @@ public class ScannerPlugin extends FishbowlPlugin implements PropertyGetter, Rep
 
 
 //        this.pnlCards.add(pnlGeneric, "GenericPanel" );
-        this.hideShowPanels();
+        // this.hideShowPanels();
     }
 
-    private void hideShowPanels() {
-        final CardLayout layout = (CardLayout)this.pnlCards.getLayout();
-        this.enableControls(true);
-        layout.show(this.pnlCards, PLUGIN_GENERIC_PANEL);
-    }
+//    private void hideShowPanels() {
+//        final CardLayout layout = (CardLayout)this.pnlCards.getLayout();
+//        this.enableControls(true);
+//        layout.show(this.pnlCards, PLUGIN_GENERIC_PANEL);
+//    }
 
     private void enableControls(final boolean enable) {
         this.btnSave.setEnabled(enable);
@@ -208,8 +202,8 @@ public class ScannerPlugin extends FishbowlPlugin implements PropertyGetter, Rep
 
     private void initComponents() {
         try {
-            this.titleLabel = new TitlePanel();
-            this.pnlCards = new JPanel(); //Tabbed layout Option
+            this.titlePanel = new RefreshTitlePanel();
+
             this.mainToolBar = new JToolBar();
             this.btnSave = new FBMainToolbarButton();
 
@@ -221,7 +215,7 @@ public class ScannerPlugin extends FishbowlPlugin implements PropertyGetter, Rep
             this.mainToolBar.setRollover(true);
             this.mainToolBar.setName("mainToolBar");
 
-            this.btnSave.setIcon((Icon) new ImageIcon(this.getClass().getResource("/icon24/filesystem/disks/disk_gold.png")));
+            this.btnSave.setIcon((Icon) new ImageIcon(this.getClass().getResource("/toolbar/save24.png")));
             this.btnSave.setText("Save");
             this.btnSave.setToolTipText("Save your Scanner Plugin settings."); //CHANGE NAME
             this.btnSave.setHorizontalTextPosition(0);
@@ -239,25 +233,19 @@ public class ScannerPlugin extends FishbowlPlugin implements PropertyGetter, Rep
 
 //HEADER LABEL AT THE TOP OF THE MODULE
             this.setName("this");
-            this.setLayout((LayoutManager) new GridBagLayout());
-            ((GridBagLayout) this.getLayout()).columnWidths = new int[]{0, 0};
-            ((GridBagLayout) this.getLayout()).rowHeights = new int[]{0, 0, 0};
-            ((GridBagLayout) this.getLayout()).columnWeights = new double[]{1.0, 1.0E-4};
-            ((GridBagLayout) this.getLayout()).rowWeights = new double[]{0.0, 1.0, 1.0E-4};
-            this.titleLabel.setModuleIcon(new ImageIcon(this.getClass().getResource("/images/unigrative32.png"))); //CHANGE
-            this.titleLabel.setModuleTitle(this.MODULE_FRIENDLY_NAME);
-            this.titleLabel.setBackground(new Color(44, 94, 140));
-            this.titleLabel.setName("titleLabel");
-            this.add((Component) this.titleLabel, (Object) new GridBagConstraints(0, 0, 1, 1, 0.0, 0.0, 10, 1, new Insets(0, 0, 0, 0), 0, 0));
+            this.setLayout(new BorderLayout());
+            this.titlePanel.setModuleIcon(new ImageIcon(this.getClass().getResource("/images/unigrative32.png"))); //CHANGE
+            this.titlePanel.setModuleTitle(this.MODULE_FRIENDLY_NAME);
+            this.titlePanel.setBackground(new Color(44, 94, 140));
+            this.titlePanel.setName("pnlTitle");
+            this.add(titlePanel, "North");
 
 
 
-
-
-            this.pnlCards.setName("pnlCards");
-            this.pnlCards.setLayout(new CardLayout());
-            this.add((Component) this.pnlCards, (Object) new GridBagConstraints(0, 1, 1, 1, 0.0, 0.0, 10, 1, new Insets(0, 0, 0, 0), 0, 0));
-
+            this.pnlContent = new JPanel(); //Tabbed layout Option
+            this.pnlContent.setName("pnlContent");
+            this.pnlContent.setLayout(new BorderLayout());
+            this.add(this.pnlContent, "Center");
         }
         catch (Exception e){
             LOGGER.error("Error in init",e);

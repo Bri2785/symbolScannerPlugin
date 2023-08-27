@@ -1,0 +1,13 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="scannerPlugin-23.3.2">
+    <output-path>G:/Fishbowl/Fishbowl_23_3/plugins</output-path>
+    <root id="archive" name="scannerPlugin-23.3.2.jar">
+      <element id="module-output" name="symbolScannerPlugin" />
+      <element id="extracted-dir" path="C:/Program Files/Zebra Technologies/Barcode Scanners/Scanner SDK/JPOS/external/JavaPOS-1.13.0-Dist/javaPOS113.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="C:/Program Files/Zebra Technologies/Barcode Scanners/Scanner SDK/JPOS/bin/JposServiceScanner.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="C:/Program Files/Zebra Technologies/Barcode Scanners/Scanner SDK/JPOS/bin/JposServiceOnScanner.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="C:/Program Files/Zebra Technologies/Barcode Scanners/Scanner SDK/JPOS/bin/JposServiceJniScanner.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="C:/Program Files/Zebra Technologies/Barcode Scanners/Scanner SDK/JPOS/bin/JposLogger.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

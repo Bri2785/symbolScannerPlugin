@@ -85,9 +85,9 @@ public class ScannerButton
 
     /////BARCODE SCANNER OBJECTS
     private Scanner scanner = null;
-    JposServiceConnection serviceConnection;
-    BaseService service;
-    int LI2478_id;
+//    JposServiceConnection serviceConnection;
+//    BaseService service;
+//    int LI2478_id;
 
 
     public ScannerButton() {
@@ -169,21 +169,22 @@ public class ScannerButton
     private void initModule() {
         LOGGER.debug("Selected module - " + selectedModule);
         LOGGER.debug("Client properties value - " + ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE));
-        if (ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE) == null) {
-            //default to sales order module if setting hasn't been set yet
+        if (ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE) == null || ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE).equals(ScannerModuleEnum.SALES_ORDER.getValue())) {
             _SOModuleClient = (SOModuleClient) ScannerPlugin.getInstance().getModule(ScannerModuleEnum.SALES_ORDER.getValue());
             _ShipModuleClient = null;
             selectedModule = ScannerModuleEnum.SALES_ORDER;
+
+            EVEvent request = this.eveManager.createRequest(MethodConst.GET_CUSTOM_FIELDS);
+            request.addObject(KeyConst.TABLE_ID, RecordTypeConst.SO_ITEM);
+            request.add("activeOnlyFlag", true);
+            EVEvent response = this.eveManager.sendAndWait(request);
+            this.soItemCustomFieldList = response.getList(KeyConst.CUSTOM_FIELDS, CustomField.class);
+
         } else {
-            if (ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE).equals(ScannerModuleEnum.SHIPPING.getValue())) {
-                _ShipModuleClient = (ShipModuleClient) ScannerPlugin.getInstance().getModule(ScannerModuleEnum.SHIPPING.getValue());
-                _SOModuleClient = null;
-                selectedModule = ScannerModuleEnum.SHIPPING;
-            } else {
-                _SOModuleClient = (SOModuleClient) ScannerPlugin.getInstance().getModule(ScannerModuleEnum.SALES_ORDER.getValue());
-                _ShipModuleClient = null;
-                selectedModule = ScannerModuleEnum.SALES_ORDER;
-            }
+            _ShipModuleClient = (ShipModuleClient) ScannerPlugin.getInstance().getModule(ScannerModuleEnum.SHIPPING.getValue());
+            _SOModuleClient = null;
+            selectedModule = ScannerModuleEnum.SHIPPING;
+
         }
 
 //        if (isDebug){
@@ -195,33 +196,10 @@ public class ScannerButton
     ///////BARCODE SCANNER METHODS
     public void initScanner() {
 
-        //System.setProperty("jpos.config.populatorFile", "/images/jpos.xml");
-        //System.setProperty(JposPropertiesConst.JPOS_POPULATOR_FILE_PROP_NAME,  "C:\\Users\\bnordstrom\\Source\\jpos.xml" );
-        //LOGGER.error(CheckoutButton.class.getResource("jpos.xml").toString());
-
-
-        //System.setProperty(JposPropertiesConst.JPOS_POPULATOR_FILE_URL_PROP_NAME, "file:/C:/Users/bnordstrom/Source/jpos.xml");
-
-        //System.setProperty("jpos.config.regPopulatorClass","jpos.config.simple.xml.SimpleXmlRegPopulator");
-        //System.setProperty("jpos.loader.serviceManagerClass","jpos.loader.simple.SimpleServiceManager");
-
-        //System.setProperty("jpos.util.tracing.TurnOnNamedTracers", "JposServiceLoader,SimpleEntryRegistry,SimpleRegPopulator,XercesRegPopulator");
-        //System.setProperty("jpos.util.tracing.TurnOnAllNamedTracers", "ON");
-
         ///////SETUP FOR THE CHECKOUT BARCODE SCANNER
-
-
         try {
-
-//            if (isDebug){
             LOGGER.debug("Starting Scanner Init");
 //            }
-            //LOGGER.error("System property: " + System.getProperty(JposPropertiesConst.JPOS_POPULATOR_FILE_URL_PROP_NAME));
-
-            //JOptionPane.showMessageDialog(null, makeScannerTable());
-
-            //UtilGui.showMessageDialog(makeScannerTable(), "scanners", 1);
-
 
             //LOGGER.error("After scanner Table servicemanager instance url: " + manager.getEntryRegistry().getRegPopulator().getEntriesURL());
             String logicalDeviceName = "ZebraAllScanners";
@@ -232,8 +210,8 @@ public class ScannerButton
 
                 SimpleEntry entry = new SimpleEntry("ZebraAllScanners", manager.getRegPopulator());
 
-                entry.addProperty("serviceInstanceFactoryClass", "com.motorola.jpos.service.scanner.SymScannerSvc112Factory");
-                entry.addProperty("serviceClass", "com.motorola.jpos.service.scanner.SymScannerSvc112");
+                entry.addProperty("serviceInstanceFactoryClass", "com.zebra.jpos.service.scanner.SymScannerSvc112Factory");
+                entry.addProperty("serviceClass", "com.zebra.jpos.service.scanner.SymScannerSvc112");
                 entry.addProperty("vendorName", "Zebra Technologies");
                 entry.addProperty("vendorURL", "https://www.zebra.com");
                 entry.addProperty("deviceCategory", "Scanner");
@@ -250,108 +228,6 @@ public class ScannerButton
             } catch (Exception e) {
                 LOGGER.error("Error with manager init: ", e);
             }
-
-
-//
-//            try {
-//                this.serviceConnection = JposServiceLoader.findService(logicalDeviceName);
-//            } catch (JposException var12) {
-//                throw var12;
-//            } catch (Exception var13) {
-//                throw new JposException(109, "Device profile not found", var13);
-//            }
-//
-//            try {
-//                this.serviceConnection.connect();
-//            } catch (JposException var10) {
-//                throw var10;
-//            } catch (Exception var11) {
-//                throw new JposException(104, "Could not connect to service", var11);
-//            }
-//
-//            try {
-//                this.service = (BaseService)this.serviceConnection.getService();
-//            } catch (Exception var9) {
-//                throw new JposException(104, "Could not get service instance", var9);
-//            }
-//
-//            JposException jposException = null;
-//            boolean bRealOpenSucceeded = false;
-
-
-//            try {
-//                EventCallbacks callbacks = this.createEventCallbacks();
-//                this.service.open(logicalDeviceName, callbacks);
-//                bRealOpenSucceeded = true;
-//                this.serviceVersion = this.service.getDeviceServiceVersion();
-//                this.setDeviceService(this.service, this.serviceVersion);
-//                this.bOpen = true;
-//            } catch (JposException var7) {
-//                jposException = var7;
-//            } catch (Exception var8) {
-//                var8.printStackTrace();
-//                jposException = new JposException(111, "Unhandled exception from Device Service", var8);
-//            }
-//
-//            if (!this.bOpen) {
-//                try {
-//                    this.service.close();
-//                } catch (Exception var6) {
-//                    ;
-//                }
-//
-//                try {
-//                    this.serviceConnection.disconnect();
-//                } catch (Exception var5) {
-//                    ;
-//                }
-//
-//                this.serviceConnection = null;
-//                this.serviceVersion = 0;
-//                throw jposException;
-//            }
-
-
-            //manager.createConnection("ZebraAllScanners");
-
-            //JCoreScanner jCoreScanner = new JCoreScanner();
-//            try {
-//                Class.forName( "com.motorola.jpos.service.scanner.SymScannerSvc19" );
-//                UtilGui.showMessageDialog("Class 19 found");
-//            } catch( ClassNotFoundException e ) {
-//                UtilGui.showMessageDialog("Class 19 not found");
-//            }
-//            try {
-//                Class.forName( "com.motorola.jpos.service.scanner.SymScannerSvc112" );
-//                //JOptionPane.showMessageDialog(null,"Class 112 found");
-////
-////
-////                JposEntryRegistry registry = JposServiceLoader.getManager().getEntryRegistry();
-////                SimpleEntry entry = new SimpleEntry( "ZebraAllScanners", new SimpleXmlRegPopulator());
-////
-////
-////                entry.addProperty("serviceInstanceFactoryClass", "com.motorola.jpos.service.scanner.SymScannerSvc112Factory");
-////                entry.addProperty("serviceClass", "com.motorola.jpos.service.scanner.SymScannerSvc112");
-////                entry.addProperty("vendorName", "Zebra Technologies");
-////                entry.addProperty("vendorURL", "https://www.zebra.com");
-////                entry.addProperty("deviceCategory", "Scanner");
-////                entry.addProperty("jposVersion", "1.12");
-////                entry.addProperty("productDescription", "Zebra Serial/USB Scanner");
-////                entry.addProperty("productName", "Zebra Scanner");
-////                entry.addProperty("productURL", "https://www.zebra.com");
-////                entry.addProperty("ScannerType", "1");
-////                entry.addProperty("ExclusiveClaimLevel", "0");
-////
-////
-////
-////                registry.addJposEntry((JposEntry)entry);
-////                registry.load();
-////                LOGGER.error("registry size" + registry.getSize());
-//
-//
-//            } catch( ClassNotFoundException e ) {
-//                UtilGui.showMessageDialog("Class 112 not found");
-//            }
 
             scanner = new Scanner();
             scanner.addDataListener(this);
@@ -752,11 +628,12 @@ public class ScannerButton
         }
         //re-initalize
         initScanner();
-        if (scanner != null){
-            UtilGui.showMessageDialog("Scanner Reset");
+        try{
+            LOGGER.debug("Scanner service version: " + scanner.getDeviceServiceVersion());
         }
-        else{
+        catch (JposException e){
             UtilGui.showMessageDialog("Scanner was not able to be reset, check logs");
+            LOGGER.error("Error resetting scanner", e);
         }
 
     }
