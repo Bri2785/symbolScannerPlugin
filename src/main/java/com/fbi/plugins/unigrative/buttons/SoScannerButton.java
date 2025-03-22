@@ -1,13 +1,16 @@
 //we need this package to gain access to protected methods in the SO module
 
-package com.evnt.client.modules.so;
+package com.fbi.plugins.unigrative.buttons;
 
 import com.evnt.client.common.ClientProperties;
 import com.evnt.client.common.EVEManager;
 import com.evnt.client.common.EVEManagerUtil;
 import com.evnt.client.modules.ship.ShipModuleClient;
+import com.evnt.client.modules.so.SODropShipChecker;
+import com.evnt.client.modules.so.SOModuleClient;
 import com.evnt.client.modules.so.dialogs.DlgInvShort;
 import com.evnt.common.MethodConst;
+import com.evnt.common.data.so.SO;
 import com.evnt.common.data.soitem.SOItem;
 import com.evnt.eve.event.EVEvent;
 import com.evnt.eve.modules.logic.extra.LogicCustomField;
@@ -23,13 +26,13 @@ import com.fbi.fbo.impl.dataexport.QueryRow;
 import com.fbi.gui.util.UtilGui;
 import com.fbi.plugins.FishbowlPluginButton;
 import com.fbi.plugins.unigrative.Models.ScannerObject;
-import com.fbi.sdk.UOMUtil;
-import com.fbi.sdk.constants.*;
-import com.fbi.util.FbiException;
 import com.fbi.plugins.unigrative.Models.Scanners;
 import com.fbi.plugins.unigrative.ScannerPlugin;
 import com.fbi.plugins.unigrative.common.DirectIOCommands;
 import com.fbi.plugins.unigrative.common.ScannerModuleEnum;
+import com.fbi.sdk.UOMUtil;
+import com.fbi.sdk.constants.*;
+import com.fbi.util.FbiException;
 import jpos.JposException;
 import jpos.config.JposEntry;
 import jpos.config.simple.SimpleEntry;
@@ -44,7 +47,6 @@ import jpos.loader.JposServiceManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 import javax.swing.*;
 import javax.swing.table.TableColumn;
 import javax.xml.bind.JAXBContext;
@@ -54,14 +56,17 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.StringReader;
-import java.util.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Timer;
+import java.util.TimerTask;
 
 
-public class ScannerButton
+public class SoScannerButton
         extends FishbowlPluginButton implements DataListener, ErrorListener {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ScannerButton.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SoScannerButton.class);
     private SOModuleClient _SOModuleClient;
     private ShipModuleClient _ShipModuleClient;
     private ScannerModuleEnum selectedModule;
@@ -69,6 +74,9 @@ public class ScannerButton
     EVEManager eveManager = EVEManagerUtil.getEveManager();
     private List<CustomField> soItemCustomFieldList;
 
+    // This method is used in Reflection to call the SoModuleClient getSO with a manually
+    // overridden access modifier (public from protected)
+    Method soClientGetSoMethod;
 
     public void setDebug(boolean debug) {
         isDebug = debug;
@@ -83,13 +91,13 @@ public class ScannerButton
 //    int LI2478_id;
 
 
-    public ScannerButton() {
+    public SoScannerButton() {
         //where does the button show
         this("Sales Order");
 
     }
 
-    protected ScannerButton(String moduleName) {
+    protected SoScannerButton(String moduleName) {
         this.setModuleName(moduleName);
         this.setPluginName(ScannerPlugin.MODULE_NAME);
 
@@ -101,35 +109,25 @@ public class ScannerButton
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
 
-//                if (!isEligibleForAdd()) {
-//                    //no SO loaded
-//                    JOptionPane.showMessageDialog(null, "No Sales Order Open"); //returns the SOID
-//                } else {
-                //TODO: SCANNER SETTING WINDOW
-                final int result = UtilGui.showConfirmDialog("Reset the scanner?","Scanner reset", 0);
-                if (result == 0){
+//                handleScannerData("INC-100GCL");
+                final int result = UtilGui.showConfirmDialog("Reset the scanner?", "Scanner reset", 0);
+                if (result == 0) {
                     resetScanner();
                 }
-//                }
 
             }
         });
-
-//        String debugMode = ScannerPlugin.getInstance().getProperty("DebugMode");
-//        if (debugMode != null){
-//            this.isDebug =  Boolean.valueOf(debugMode);
-//        }
-
+        
         initScanner();
 
     }
 
-    protected ScannerButton(boolean isDebug){
+    protected SoScannerButton(boolean isDebug){
         this.isDebug = isDebug;
     }
 
     public static void main(String[] args) {
-        ScannerButton button = new ScannerButton(true);
+        SoScannerButton button = new SoScannerButton(true);
 //        System.setProperty(JposPropertiesConst.JPOS_POPULATOR_FILE_URL_PROP_NAME, AddItemButton.class.getResource("jpos.xml").toString());
         //System.setProperty(JposPropertiesConst.JPOS_POPULATOR_FILE_URL_PROP_NAME, "C:\\Users\\bnordstrom\\Source\\jpos.xml" );
         //button.isDebug = true;
@@ -162,10 +160,16 @@ public class ScannerButton
     private void initModule() {
         LOGGER.debug("Selected module - " + selectedModule);
         LOGGER.debug("Client properties value - " + ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE));
-        if (ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE) == null || ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE).equals(ScannerModuleEnum.SALES_ORDER.getValue())) {
+        if (ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE) == null ||
+                ClientProperties.getProperty(ScannerPlugin.SCANNER_MODULE).equals(ScannerModuleEnum.SALES_ORDER.getValue())) {
             _SOModuleClient = (SOModuleClient) ScannerPlugin.getInstance().getModule(ScannerModuleEnum.SALES_ORDER.getValue());
             _ShipModuleClient = null;
             selectedModule = ScannerModuleEnum.SALES_ORDER;
+
+            if (soClientGetSoMethod == null){
+                setSoClientMethodAccesses();
+            }
+
 
             EVEvent request = this.eveManager.createRequest(MethodConst.GET_CUSTOM_FIELDS);
             request.addObject(KeyConst.TABLE_ID, RecordTypeConst.SO_ITEM);
@@ -180,10 +184,19 @@ public class ScannerButton
 
         }
 
-//        if (isDebug){
-            LOGGER.debug("Final selected module - " + selectedModule.getValue());
-//        }
+        LOGGER.debug("Final selected module - {}", selectedModule.getValue());
 
+
+    }
+
+    void setSoClientMethodAccesses(){
+        try {
+            soClientGetSoMethod = SOModuleClient.class.getDeclaredMethod("getSO");
+            soClientGetSoMethod.setAccessible(true);
+
+        } catch (NoSuchMethodException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
     }
 
     ///////BARCODE SCANNER METHODS
@@ -330,107 +343,63 @@ public class ScannerButton
 
         String data = null;
 
-//        if (!isDebug) {
+        try {
 
-            //get upc first
-            try {
-
-                jpos.Scanner scn = (jpos.Scanner) dataEvent.getSource();
-                if (scn.equals(scanner)) {
-                    data = new String(scanner.getScanData());
-                } else {
-                    //scn.setDataEventEnabled(true);
-                    data = new String(scn.getScanData());
-                    LOGGER.debug("From scn object: " + data);
-                }
-
-                //UtilGui.showMessageDialog( "Scanned data: " + upc);
-                LOGGER.debug("Scan data: " + data);
-
-
-                scanner.setDeviceEnabled(false); //disable between scans to keep from jamming up
-//                if (isDebug){
-                    LOGGER.debug("Scanner disables while processing");
-//                }
-            } catch (JposException je) {
-                LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
+            jpos.Scanner scn = (jpos.Scanner) dataEvent.getSource();
+            if (scn.equals(scanner)) {
+                data = new String(scanner.getScanData());
+            } else {
+                //scn.setDataEventEnabled(true);
+                data = new String(scn.getScanData());
+                LOGGER.debug("From scn object: " + data);
             }
 
+            //UtilGui.showMessageDialog( "Scanned data: " + data);
+            LOGGER.debug("Scan data: " + data);
+            scanner.setDeviceEnabled(false); //disable between scans to keep from jamming up
 
-            //handle scan
-            try {
-                initModule(); //confirm that the settings havent been changed
-                LOGGER.debug("Module verified and selected");
-                switch (selectedModule) {
-                    case SALES_ORDER:
-                        handleSoScan(data);
-                        break;
-                    case SHIPPING:
-                        handleShipScan(data);
-                        break;
-                }
-            } catch (Exception e) {
-                LOGGER.error("Error handling scan", e);
+            LOGGER.debug("Scanner disables while processing");
+
+        } catch (JposException je) {
+            LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
+        }
+
+
+        //handle scan
+        handleScannerData(data);
+
+        LOGGER.debug("Finished handling scan, re-enabling scanner");
+
+        // re-enable scanner
+        try {
+
+
+            scanner.setDataEventEnabled(true);
+            scanner.setDeviceEnabled(true);
+
+        } catch (JposException je) {
+            LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
+        }
+
+        LOGGER.debug("Finished Scan");
+
+    }
+
+    private void handleScannerData(String data) {
+        try {
+            initModule(); //confirm that the settings haven't been changed
+            LOGGER.debug("Module verified and selected");
+            switch (selectedModule) {
+                case SALES_ORDER:
+                    handleSoScan(data);
+                    break;
+                case SHIPPING:
+                    handleShipScan(data);
+                    break;
             }
-
-//        if (isDebug){
-            LOGGER.debug("Finished handling scan, re-enabling scanner");
-//        }
-            // re-enable scanner
-            try {
-
-
-                scanner.setDataEventEnabled(true);
-                scanner.setDeviceEnabled(true);
-
-            } catch (JposException je) {
-                LOGGER.error("Scanner: dataOccurred: Jpos Exception" + je);
-            }
-
-//        if (isDebug){
-            LOGGER.debug("Finished Scan");
-//        }
-//        }
-//        else {
-//            try {
-//
-//                Scanner scn = (Scanner) dataEvent.getSource();
-//                if (scn.equals(scanner)) {
-//                    //if (autoDataEventEnableCB.isSelected()) {
-//                    scanner.setDataEventEnabled(true);
-//                    //}
-//                    data = new String(scanner.getScanData());
-//
-//                } else {
-//                    scn.setDataEventEnabled(true);
-//                    data = new String(scn.getScanData());
-//                    System.err.println( "From scn object: " + new String(scn.getScanData()));
-//                }
-//                scanner.setDeviceEnabled(true); //renable device after scan TODO: maybe move this to after the FB product load
-//
-//                //JOptionPane.showMessageDialog(null, "Scanned data: " + upc);
-//                System.err.println("Scan data: " + data);
-//
-//
-//            } catch (JposException je) {
-//                System.err.println("Scanner: dataOccurred: Jpos Exception" + je);
-//            }
-//
-//            int productID = 0;
-//            System.err.println("Product ID = " + productID);
-//
-//
-//            if (productID != 0) {
-//                System.err.println("Adding item to SO");
-//                addItemToSO(productID);
-//            } else {
-//                System.err.println("Product not found");
-//                //TODO: beep error
-//                actionScannerError();
-//            }
-//
-//
-//        }
+        } catch (Exception e) {
+            LOGGER.error("Error handling scan", e);
+        }
     }
 
     private void handleShipScan(String data) {
@@ -487,36 +456,41 @@ public class ScannerButton
             this._SOModuleClient.loadSO(data.substring(4));
 
         } else {
-//            if (isDebug){
-                LOGGER.debug("Product Scanned");
-//            }
+
+
+            LOGGER.debug("Product Scanned");
+
             //product scanned, check SO state
-            if (!isEligibleForAdd()) {
-                actionScannerError();
-                JOptionPane.showMessageDialog(null, "Check the current open sales order"); //returns the SOID
-
-            } else {
-
-                _SOModuleClient.getController().setModified(false);
-
-                //load product
-//                if (isDebug){
-                    LOGGER.debug("Lookup Product ID");
-//                }
-
-                int productID = getProductID(data);
-                LOGGER.debug("Product ID = " + productID);
-
-
-                if (productID != 0) {
-                    LOGGER.info("Adding item to SO");
-                    addItemToSO(productID);
-                } else {
-                    LOGGER.info("Product not found");
+            try {
+                if (!isEligibleForAdd()) {
                     actionScannerError();
+                    JOptionPane.showMessageDialog(null, "Check the current open sales order"); //returns the SOID
 
-                    UtilGui.showMessageDialog("Product Not found");
+                } else {
+
+                    _SOModuleClient.getController().setModified(false);
+
+                    //load product
+    //                if (isDebug){
+                        LOGGER.debug("Lookup Product ID");
+    //                }
+
+                    int productID = getProductID(data);
+                    LOGGER.debug("Product ID = " + productID);
+
+
+                    if (productID != 0) {
+                        LOGGER.info("Adding item to SO");
+                        addItemToSO(productID);
+                    } else {
+                        LOGGER.info("Product not found");
+                        actionScannerError();
+
+                        UtilGui.showMessageDialog("Product Not found");
+                    }
                 }
+            } catch (Exception e) {
+                UtilGui.showMessageDialog(e.getMessage());
             }
         }
     }
@@ -749,61 +723,46 @@ public class ScannerButton
     }
 
     private void addItemToSO(int productId) {
-        //testing we are using 100Gcl 636
-
-
-
-        //LOGGER.error(_SOModuleClient.getModuleName());
-
-//_SOModuleClient.getController().setModified(false);
-        //LOGGER.error("Module is modified :" + _SOModuleClient.getController().isModified());
         try {
-            //get current so object to add our item to
-//            LOGGER.error("From addItem");
-//            new Thread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    LOGGER.error("Starting thread");
             if (addProductToSO(productId, new Quantity(1), null, true) == null) {
                 //error on adding
                 LOGGER.error("Error adding item to SO");
             }
-//                }
-//            }).start();
-
-            //_SOModuleClient.saveSO(false,false);
         } catch (Exception e) {
             LOGGER.error("Error adding item", e);
         }
     }
 
-    private boolean isEligibleForAdd(){
+    private boolean isEligibleForAdd() throws Exception {
+
+        SO currentSo;
+        try {
+            currentSo = (SO) soClientGetSoMethod.invoke(_SOModuleClient);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new Exception("Unable to load the current SO, this is a system issue");
+        }
 
         if (_SOModuleClient.getObjectId() == -1){
             //could be no SO loaded or a new one thats not saved
-            if (_SOModuleClient.so == null){
-                return false; //no so loaded
-            }
+            return currentSo != null; //no so loaded
         }
         else{
-            if (_SOModuleClient.so.getStatus() != SOStatusConst.ISSUED.getId() &&
-                    _SOModuleClient.so.getStatus() != SOStatusConst.IN_PROGRESS.getId() &&
-                    _SOModuleClient.so.getStatus() != SOStatusConst.ESTIMATE.getId()){
-                //UtilGui.showMessageDialog("Status no matchy");
-                return false; //these are closed orders
-            }
-            else {
-                //UtilGui.showMessageDialog("Status matchy");
-                return true; //new SO that's not saved yet.
-            }
+            return currentSo.getStatus() == SOStatusConst.ISSUED.getId() ||
+                    currentSo.getStatus() == SOStatusConst.IN_PROGRESS.getId() ||
+                    currentSo.getStatus() == SOStatusConst.ESTIMATE.getId(); //these are closed orders
         }
-        return true;
 
     }
 
     ////// COPIED METHODS FROM EXISTING MODULES, CHECK ON FB UPDATE THAT THESE ARE THE SAME
-    private SOItem addProductToSO(final int productId, Quantity qty, final Money price, final boolean changeQty) {
+    private SOItem addProductToSO(final int productId, Quantity qty, final Money price, final boolean changeQty) throws Exception {
         SOItem soItem = null;
+        SO currentSo;
+            try {
+                currentSo = (SO) soClientGetSoMethod.invoke(_SOModuleClient);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new Exception("Unable to load the current SO, this is a system issue");
+            }
 
         if (productId > 0 && qty.greaterThan(0)) {
             try {
@@ -813,9 +772,9 @@ public class ScannerButton
                 final DlgInvShort dlgInvShort = new DlgInvShort();
 
                 while (!finishedAdding) {
-                    soItem = _SOModuleClient.so.createSoItem();
+                    soItem = currentSo.createSoItem();
                     soItem.getSalesOrderItemFpo().setCustomFieldMap(LogicCustomField.createCustomFieldMap(this.soItemCustomFieldList));
-                    soItem.setProductID(productId, _SOModuleClient.so.getSoFpo().getCustomerId());
+                    soItem.setProductID(productId, currentSo.getSoFpo().getCustomerId());
                     //this checks if the qty entered fits into the uom selected. We are always doing 1 so we dont need this
 //                    if (!checkSOItemQtyAndUOM(qty, soItem.getUom())) {
 //                        return null;
@@ -833,7 +792,7 @@ public class ScannerButton
                         //WE DONT WANT TO HANDLE KITS AT THIS POINT
                         //SOUND ERROR AND PROMPT TO ENTER MANUALLY
                         actionScannerError();
-                        UtilGui.showMessageDialog("Scanner cannot process kits. Add product " + soItem.getProductFpo().getNum() +" manually");
+                        UtilGui.showMessageDialog("Scanner cannot process kits. Add product " + soItem.getProductFpo().getNum() + " manually");
 //                        this.showAddSOItemWizard(soItem, qty, false, true);
 //                        this.pnlQAProduct.setSelectedID(-1);
 //                        this.quantityFormattedTextField.setQuantity(Quantity.ONE);
@@ -849,12 +808,12 @@ public class ScannerButton
                             }
 
                             //ADDED PART SHORT CHECK TO PLAY THE ERROR SOUND. VERIFY SPEED
-                            if( _SOModuleClient.isPartShort(partFpo, qty, 4, soItem)){
+                            if (_SOModuleClient.isPartShort(partFpo, qty, 4, soItem)) {
                                 actionScannerError();
                             }
 
                             //REMOVED THE LOCATION GROUP LOOKUP COMBO AND HARD CODED IN MAIN WAREHOUSE
-                            switch (_SOModuleClient.getLogicSalesClient().checkAvailable(partFpo, partQty, _SOModuleClient.so, 4, soItem, soItem.getSalesOrderItemFpo().getUomId(), eveManager, _SOModuleClient, dlgInvShort)) {
+                            switch (_SOModuleClient.getLogicSalesClient().checkAvailable(partFpo, partQty, currentSo, 4, soItem, soItem.getSalesOrderItemFpo().getUomId(), eveManager, _SOModuleClient, dlgInvShort)) {
                                 case 4: {
                                     if (!_SOModuleClient.showAddSOItemWizard(soItem, qty, true, true)) {
                                         return null;
@@ -866,7 +825,7 @@ public class ScannerButton
                                     SODropShipChecker.checkVendorRelationShip(eveManager, soItem);
                                     soItem.setType(SOItemTypeConst.DROP_SHIP);
                                     try {
-                                        _SOModuleClient.so.addItem(soItem);
+                                        currentSo.addItem(soItem);
                                     } catch (FbiException e) {
                                         UtilGui.showMessageDialog(e.getMessage(), "SO Item error", 0);
                                         return null;
@@ -876,7 +835,7 @@ public class ScannerButton
                                 }
                                 case 1: {
                                     try {
-                                        _SOModuleClient.so.addItem(soItem);
+                                        currentSo.addItem(soItem);
                                     } catch (FbiException e) {
                                         UtilGui.showMessageDialog(e.getMessage(), "SO Item error", 0);
                                         return null;
@@ -900,7 +859,7 @@ public class ScannerButton
                                 }
                                 case 5: {
                                     try {
-                                        _SOModuleClient.so.addItem(soItem);
+                                        currentSo.addItem(soItem);
                                     } catch (FbiException e2) {
                                         UtilGui.showMessageDialog(e2.getMessage(), "SO Item error", 0);
                                         return null;
@@ -920,7 +879,7 @@ public class ScannerButton
                             }
                         } else {
                             try {
-                                _SOModuleClient.so.addItem(soItem);
+                                currentSo.addItem(soItem);
                             } catch (FbiException e3) {
                                 UtilGui.showMessageDialog(e3.getMessage(), "SO Item error", 0);
                                 return null;
@@ -963,18 +922,24 @@ public class ScannerButton
 
                 _SOModuleClient.displayOnLineDisplay(soItem);
             } catch (IllegalArgumentException e4) {
-                this.LOGGER.error(e4.getMessage(), (Throwable) e4);
+                LOGGER.error(e4.getMessage(), (Throwable) e4);
                 final OptionMessage msg = new OptionMessage(e4.getMessage());
                 UtilGui.showErrorMessageDialog(e4.getMessage(), "SO Item Error");
                 //_SOModuleClient.quantityFormattedTextField.requestFocus();
                 return null;
             } catch (Exception e5) {
-                this.LOGGER.error ( e5.getMessage(), (Throwable) e5);
+                LOGGER.error(e5.getMessage(), (Throwable) e5);
                 //this.quantityFormattedTextField.requestFocus();
                 return null;
             }
-            _SOModuleClient.populateItemsTable();
-            //_SOModuleClient.pnlQAProduct.setSelectedID(-1);
+
+            try {
+                Method populateItemsTableMethod = SOModuleClient.class.getDeclaredMethod("populateItemsTable");
+                populateItemsTableMethod.setAccessible(true);
+                populateItemsTableMethod.invoke(_SOModuleClient);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new Exception("Unable to refresh the items table, please refresh the Sales Order screen");
+            }
         }
         if (changeQty) {
             //RESET THE QTY TEXT BOX BUT IT'S PRIVATE ACCESS, SO SKIP FOR NOW
@@ -984,68 +949,5 @@ public class ScannerButton
         return soItem;
     }
 
-//    private void mapCustomFields(final int productId, final SOItem soItem) {
-//        final EVEvent request = eveManager.createRequest(MethodConst.GET_CUSTOM_FIELD_VALUES);
-//        request.addObject((Object) KeyConst.TABLE_ID, (Serializable) RecordTypeConst.PRODUCT);
-//        request.add((Object)KeyConst.RecordID, productId);
-//        final EVEvent response = eveManager.sendAndWait(request);
-//        final List<CustomField> productCustomFieldList = (List<CustomField>)response.getList((Object)KeyConst.CUSTOM_FIELDS, (Class)CustomField.class);
-//        LogicCustomField.mapCustomFields((List)productCustomFieldList, soItem.getCustomFieldList());
-//    }
-
-
-
-
-
-/////OLD STUFF FROM OTHER BUTTONS
-
-    private int getSOItemCount(int selectedSOID) {
-        StringBuilder query = new StringBuilder("Select count(id) as ItemCount ");
-        query.append("from soitem ");
-        query.append("where soid = ").append(selectedSOID).append(") ");
-        query.append("AND Soitem.typeid not in (40,60,90)");
-        List stateRows = this.runQuery(query.toString());
-        if (!Util.isEmpty((List)stateRows)) {
-            return ((QueryRow)stateRows.get(0)).getInt("ItemCount");
-        }
-        return -1;
-    }
-
-    private String getSONum(int SOID) {
-        StringBuilder query = new StringBuilder("Select num from SO where id = ").append(SOID);
-        List stateRows = this.runQuery(query.toString());
-        if (!Util.isEmpty((List)stateRows)) {
-            return ((QueryRow)stateRows.get(0)).getString("num");
-        }
-        return null;
-    }
-
-    private Boolean isIssued(int SOID) {
-        StringBuilder query = new StringBuilder("Select statusid from SO where id = ").append(SOID);
-        List stateRows = this.runQuery(query.toString());
-        if (!Util.isEmpty((List)stateRows)) {
-            if (((QueryRow)stateRows.get(0)).getInt("statusid") == 20 || ((QueryRow)stateRows.get(0)).getInt("statusid") == 25)
-                return true;
-            else
-            {return false;}
-        }
-        return null;
-    }
-
-    private int getSOPickCount (int SOID) {
-        StringBuilder query = new StringBuilder("Select pick.num as PickNum ");
-        query.append("from so ");
-        query.append("JOIN pickitem ON pickitem.orderId = so.id ");
-        query.append("JOIN pick ON pick.id = pickitem.pickId ");
-        query.append("Where so.id = ").append(SOID);
-        query.append("GROUP BY pick.id ");
-        List stateRows = this.runQuery(query.toString());
-        if (!Util.isEmpty((List) stateRows)) {
-            return (stateRows.size());
-        }
-
-        return -1;
-
-    }
 
 }
