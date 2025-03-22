@@ -1,9 +1,9 @@
 
-package com.unigrative.plugins.repository;
+package com.fbi.plugins.unigrative.repository;
 
 import com.evnt.util.Util;
 import com.fbi.fbo.impl.dataexport.QueryRow;
-import com.unigrative.plugins.ScannerPlugin;
+import com.fbi.plugins.unigrative.ScannerPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

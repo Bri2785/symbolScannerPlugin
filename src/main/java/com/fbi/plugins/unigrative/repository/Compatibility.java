@@ -1,5 +1,5 @@
 
-package com.unigrative.plugins.repository;
+package com.fbi.plugins.unigrative.repository;
 
 import com.fbi.fbo.impl.dataexport.QueryRow;
 

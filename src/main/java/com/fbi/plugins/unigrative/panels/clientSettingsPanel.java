@@ -1,4 +1,4 @@
-package com.unigrative.plugins.panels;
+package com.fbi.plugins.unigrative.panels;
 
 import javax.swing.*;
 import java.awt.*;

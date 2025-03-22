@@ -1,4 +1,4 @@
-package com.unigrative.plugins;
+package com.fbi.plugins.unigrative;
 
 import com.evnt.client.common.ClientProperties;
 import com.evnt.client.common.EVEManager;
@@ -9,10 +9,10 @@ import com.fbi.gui.button.FBMainToolbarButton;
 import com.fbi.gui.panel.TitlePanel;
 import com.fbi.plugins.FishbowlPlugin;
 import com.fbi.sdk.constants.MenuGroupNameConst;
-import com.unigrative.plugins.panels.clientSettingsPanelImpl;
-import com.unigrative.plugins.repository.Repository;
-import com.unigrative.plugins.util.property.Property;
-import com.unigrative.plugins.util.property.PropertyGetter;
+import com.fbi.plugins.unigrative.panels.clientSettingsPanelImpl;
+import com.fbi.plugins.unigrative.repository.Repository;
+import com.fbi.plugins.unigrative.util.property.Property;
+import com.fbi.plugins.unigrative.util.property.PropertyGetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

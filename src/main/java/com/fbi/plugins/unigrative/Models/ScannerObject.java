@@ -1,10 +1,10 @@
-package com.unigrative.plugins.Models;
+package com.fbi.plugins.unigrative.Models;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 
 @XmlAccessorType(XmlAccessType.FIELD)
-public class Scanner {
+public class ScannerObject {
 
     //@XmlElement
     private int scannerID;

@@ -1,4 +1,4 @@
-package com.unigrative.plugins.Models;
+package com.fbi.plugins.unigrative.Models;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -11,13 +11,13 @@ import java.util.ArrayList;
 public class Scanners {
 
     @XmlElement(name="scanner")
-    private ArrayList<Scanner> scanners;
+    private ArrayList<ScannerObject> scanners;
 
-    public ArrayList<Scanner> getScanners() {
+    public ArrayList<ScannerObject> getScanners() {
         return scanners;
     }
 
-    public void setScanners(ArrayList<Scanner> scanners) {
+    public void setScanners(ArrayList<ScannerObject> scanners) {
         this.scanners = scanners;
     }
 }

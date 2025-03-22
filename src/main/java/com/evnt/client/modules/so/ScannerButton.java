@@ -10,7 +10,6 @@ import com.evnt.client.modules.so.dialogs.DlgInvShort;
 import com.evnt.common.MethodConst;
 import com.evnt.common.data.soitem.SOItem;
 import com.evnt.eve.event.EVEvent;
-import com.evnt.eve.modules.CustomFieldModule;
 import com.evnt.eve.modules.logic.extra.LogicCustomField;
 import com.evnt.ui.OptionMessage;
 import com.evnt.util.KeyConst;
@@ -23,17 +22,15 @@ import com.fbi.fbo.CustomField;
 import com.fbi.fbo.impl.dataexport.QueryRow;
 import com.fbi.gui.util.UtilGui;
 import com.fbi.plugins.FishbowlPluginButton;
+import com.fbi.plugins.unigrative.Models.ScannerObject;
 import com.fbi.sdk.UOMUtil;
 import com.fbi.sdk.constants.*;
 import com.fbi.util.FbiException;
-import com.fbi.util.logging.FBLogger;
-import com.unigrative.plugins.Models.Scanners;
-import com.unigrative.plugins.ScannerPlugin;
-import com.unigrative.plugins.common.DirectIOCommands;
-import com.unigrative.plugins.common.ScannerModuleEnum;
-import com.unigrative.plugins.util.property.PropertyGetter;
+import com.fbi.plugins.unigrative.Models.Scanners;
+import com.fbi.plugins.unigrative.ScannerPlugin;
+import com.fbi.plugins.unigrative.common.DirectIOCommands;
+import com.fbi.plugins.unigrative.common.ScannerModuleEnum;
 import jpos.JposException;
-import jpos.Scanner;
 import jpos.config.JposEntry;
 import jpos.config.simple.SimpleEntry;
 import jpos.config.simple.SimpleEntryRegistry;
@@ -42,11 +39,8 @@ import jpos.events.DataEvent;
 import jpos.events.DataListener;
 import jpos.events.ErrorEvent;
 import jpos.events.ErrorListener;
-import jpos.loader.JposServiceConnection;
 import jpos.loader.JposServiceLoader;
 import jpos.loader.JposServiceManager;
-import jpos.services.BaseService;
-import org.apache.commons.lang3.SerializationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +53,6 @@ import javax.xml.bind.Unmarshaller;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.Serializable;
 import java.io.StringReader;
 import java.util.*;
 import java.util.List;
@@ -84,7 +77,7 @@ public class ScannerButton
     private boolean isDebug = false; //Set after we scan until FB is done processing; //TODO: look at finishedAdding bool in add method
 
     /////BARCODE SCANNER OBJECTS
-    private Scanner scanner = null;
+    private jpos.Scanner scanner = null;
 //    JposServiceConnection serviceConnection;
 //    BaseService service;
 //    int LI2478_id;
@@ -229,11 +222,12 @@ public class ScannerButton
                 LOGGER.error("Error with manager init: ", e);
             }
 
-            scanner = new Scanner();
+            LOGGER.debug("JposManager created");
+            scanner = new jpos.Scanner();
             scanner.addDataListener(this);
             scanner.addErrorListener(this);
 
-
+            LOGGER.debug("Scanner object created");
             scanner.open("ZebraAllScanners");
         } catch (Exception e) {
             //JOptionPane.showMessageDialog(null, "Failed to open \"" + "ZebraAllScanners" + "\"\nException: " + e.getMessage(), "Failed", JOptionPane.ERROR_MESSAGE);
@@ -341,7 +335,7 @@ public class ScannerButton
             //get upc first
             try {
 
-                Scanner scn = (Scanner) dataEvent.getSource();
+                jpos.Scanner scn = (jpos.Scanner) dataEvent.getSource();
                 if (scn.equals(scanner)) {
                     data = new String(scanner.getScanData());
                 } else {
@@ -571,7 +565,7 @@ public class ScannerButton
             LOGGER.error("Error binding to scanner class for XML parse ", e);
         }
 
-        for (com.unigrative.plugins.Models.Scanner scanner: scannerList.getScanners()
+        for (ScannerObject scanner: scannerList.getScanners()
         ) {
 //            if (isDebug){
                 LOGGER.debug("Scanner List, Model Number -> " + scanner.getModelnumber() + ", ID -> " + scanner.getScannerID());

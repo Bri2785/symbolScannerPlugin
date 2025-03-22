@@ -1,4 +1,4 @@
-package com.unigrative.plugins.common;
+package com.fbi.plugins.unigrative.common;
 
 public enum ScannerModuleEnum {
 

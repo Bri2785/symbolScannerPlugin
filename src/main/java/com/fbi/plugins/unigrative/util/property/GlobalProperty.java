@@ -1,6 +1,6 @@
-package com.unigrative.plugins.util.property;
+package com.fbi.plugins.unigrative.util.property;
 
-import com.unigrative.plugins.util.property.reader.Reader;
+import com.fbi.plugins.unigrative.util.property.reader.Reader;
 
 public final class GlobalProperty<T> extends PluginProperty<T>
 {

@@ -1,5 +1,5 @@
 
-package com.unigrative.plugins.util.property.reader;
+package com.fbi.plugins.unigrative.util.property.reader;
 
 public final class StringReader implements Reader<String>
 {

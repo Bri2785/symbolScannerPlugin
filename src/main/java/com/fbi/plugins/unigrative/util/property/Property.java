@@ -2,10 +2,10 @@
 // Decompiled by Procyon v0.5.30
 // 
 
-package com.unigrative.plugins.util.property;
+package com.fbi.plugins.unigrative.util.property;
 
-import com.unigrative.plugins.util.property.reader.BooleanReader;
-import com.unigrative.plugins.util.property.reader.StringReader;
+import com.fbi.plugins.unigrative.util.property.reader.BooleanReader;
+import com.fbi.plugins.unigrative.util.property.reader.StringReader;
 
 public final class Property
 {

@@ -1,6 +1,6 @@
-package com.unigrative.plugins.panels;
+package com.fbi.plugins.unigrative.panels;
 
-import com.unigrative.plugins.ScannerPlugin;
+import com.fbi.plugins.unigrative.ScannerPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
